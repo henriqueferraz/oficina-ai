@@ -9,7 +9,7 @@ Copie de `.env.example`. Principais:
 | `SECRET_KEY` | sim | Chave Django |
 | `DEBUG` | sim | `False` em produção |
 | `ALLOWED_HOSTS` | sim | Domínios separados por vírgula |
-| `CSRF_TRUSTED_ORIGINS` | sim (HTTPS) | Origens com esquema, ex. `https://app.seudominio.com` |
+| `CSRF_TRUSTED_ORIGINS` | recomendado | Origens com esquema; se vazio, deriva de `ALLOWED_HOSTS` + `PUBLIC_BASE_URL` |
 | `DATABASE_URL` | sim | Postgres (Neon ou EasyPanel) |
 | `OPENAI_API_KEY` | não | Agente IA + transcrição de áudio |
 | `OPENAI_TRANSCRIPTION_MODEL` | não | Default `whisper-1` |
@@ -39,12 +39,14 @@ O repo inclui `Dockerfile` e `.dockerignore` para deploy via App Service.
 ```text
 SECRET_KEY=<forte>
 DEBUG=False
-ALLOWED_HOSTS=seu-dominio.com,www.seu-dominio.com
-CSRF_TRUSTED_ORIGINS=https://seu-dominio.com,https://www.seu-dominio.com
+ALLOWED_HOSTS=hferraz-oficina.mvcrlx.easypanel.host,seu-dominio.com
+CSRF_TRUSTED_ORIGINS=https://hferraz-oficina.mvcrlx.easypanel.host,https://seu-dominio.com
 DATABASE_URL=postgresql://...
-PUBLIC_BASE_URL=https://seu-dominio.com
+PUBLIC_BASE_URL=https://hferraz-oficina.mvcrlx.easypanel.host
 CELERY_TASK_ALWAYS_EAGER=True
 ```
+
+Com `ALLOWED_HOSTS` preenchido, o app também deriva `CSRF_TRUSTED_ORIGINS` automaticamente se a var estiver vazia.
 
 5. Aba **Domains**: domínio + HTTPS (Let’s Encrypt). DNS **A** → IP da VPS.
 6. **Deploy**. O container roda `migrate`, `collectstatic` e Gunicorn.

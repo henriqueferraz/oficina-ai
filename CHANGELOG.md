@@ -8,6 +8,12 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-07-30
+
+### Fixed
+
+- deriva CSRF_TRUSTED_ORIGINS dos hosts em produção (evita 403 no login)
+
 ## [0.5.0] — 2026-07-30
 
 ### Added

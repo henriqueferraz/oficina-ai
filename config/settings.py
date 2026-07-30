@@ -28,6 +28,23 @@ SECRET_KEY = env("SECRET_KEY", default="django-insecure-change-me-in-production"
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env("ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
+PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", default="http://127.0.0.1:8000")
+
+# Em produção (HTTPS atrás do proxy), deriva origens CSRF a partir dos hosts
+# se CSRF_TRUSTED_ORIGINS não foi preenchido — evita 403 no login (mobile/desktop).
+_csrf_origins = {o.rstrip("/") for o in CSRF_TRUSTED_ORIGINS if o}
+for host in ALLOWED_HOSTS:
+    host = (host or "").strip()
+    if not host or host == "*":
+        continue
+    if host in ("localhost", "127.0.0.1"):
+        _csrf_origins.update({f"http://{host}", f"http://{host}:8000"})
+    else:
+        _csrf_origins.add(f"https://{host}")
+_public = PUBLIC_BASE_URL.rstrip("/")
+if _public.startswith(("http://", "https://")):
+    _csrf_origins.add(_public)
+CSRF_TRUSTED_ORIGINS = sorted(_csrf_origins)
 
 # Proxy reverso (EasyPanel / Traefik / Caddy): HTTPS e host corretos
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -35,6 +52,8 @@ USE_X_FORWARDED_HOST = True
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SAMESITE = "Lax"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -248,9 +267,6 @@ EMAIL_BACKEND = env(
         else "django.core.mail.backends.smtp.EmailBackend"
     ),
 )
-
-# Portal / links públicos
-PUBLIC_BASE_URL = env("PUBLIC_BASE_URL", default="http://127.0.0.1:8000")
 
 # WhatsApp Cloud API (Meta)
 WHATSAPP_VERIFY_TOKEN = env("WHATSAPP_VERIFY_TOKEN", default="oficina-ai-verify")
