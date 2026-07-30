@@ -1,0 +1,29 @@
+{% extends "layouts/base.html" %}
+{% block title %}Importar CSV{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Importar CSV</h1><p>Clientes, fornecedores ou peças</p></div>
+</div>
+<section class="card card-body d-grid gap-3 form-narrow" style="max-width:560px">
+  <p style="color:var(--muted);margin:0">
+    O CSV precisa de cabeçalho. Colunas aceitas:
+  </p>
+  <ul style="color:var(--muted);margin:0;padding-left:1.2rem">
+    <li><strong>Clientes:</strong> nome, documento, telefone, email, endereco</li>
+    <li><strong>Fornecedores:</strong> nome, documento, telefone, email</li>
+    <li><strong>Peças:</strong> nome, codigo, descricao, custo, preco, estoque, estoque_minimo, unidade</li>
+  </ul>
+  <form method="post" enctype="multipart/form-data" class="d-grid gap-3 form-narrow">
+    {% csrf_token %}
+    <label class="form-label">Tipo
+      <select class="form-select" name="tipo" required>
+        <option value="clientes">Clientes</option>
+        <option value="fornecedores">Fornecedores</option>
+        <option value="pecas">Peças</option>
+      </select>
+    </label>
+    <label class="form-label">Arquivo CSV<input class="form-control" type="file" name="arquivo" accept=".csv,text/csv" required></label>
+    <button class="btn btn-primary" type="submit">Importar</button>
+  </form>
+</section>
+{% endblock %}

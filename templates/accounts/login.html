@@ -1,0 +1,22 @@
+{% extends "layouts/base.html" %}
+{% block title %}Entrar — Oficina AI{% endblock %}
+{% block auth %}
+<div class="auth-card">
+  <h1>Oficina AI</h1>
+  <p>Gestão inteligente para funilaria, pintura e mecânica.</p>
+  <form method="post" class="d-grid gap-3 form-narrow">
+    {% csrf_token %}
+    <label class="form-label">Usuário
+      <input class="form-control" type="text" name="username" required autofocus>
+    </label>
+    <label class="form-label">Senha
+      <input class="form-control" type="password" name="password" required>
+    </label>
+    {% if form.errors %}
+    <p class="error">Usuário ou senha inválidos.</p>
+    {% endif %}
+    <button class="btn btn-primary" type="submit">Entrar</button>
+  </form>
+  <p style="margin-top:1rem">Não tem conta? <a href="{% url 'accounts:register' %}">Cadastre sua oficina</a></p>
+</div>
+{% endblock %}

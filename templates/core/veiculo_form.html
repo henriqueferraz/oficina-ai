@@ -1,0 +1,27 @@
+{% extends "layouts/base.html" %}
+{% block title %}{% if veiculo %}Editar{% else %}Novo{% endif %} veículo{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% if veiculo %}Editar veículo{% else %}Novo veículo{% endif %}</h1></div>
+</div>
+<form method="post" class="card card-body d-grid gap-3 form-narrow">
+  {% csrf_token %}
+  <label class="form-label">Cliente
+    <select class="form-select" name="cliente" required>
+      <option value="">Selecione…</option>
+      {% for c in clientes %}
+      <option value="{{ c.pk }}" {% if veiculo and veiculo.cliente_id == c.pk %}selected{% endif %}>{{ c.nome }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Placa<input class="form-control" name="placa" required value="{{ veiculo.placa|default:'' }}" style="text-transform:uppercase"></label>
+  <label class="form-label">Marca<input class="form-control" name="marca" value="{{ veiculo.marca|default:'' }}"></label>
+  <label class="form-label">Modelo<input class="form-control" name="modelo" value="{{ veiculo.modelo|default:'' }}"></label>
+  <label class="form-label">Ano<input class="form-control" name="ano" type="number" value="{{ veiculo.ano|default:'' }}"></label>
+  <label class="form-label">Cor<input class="form-control" name="cor" value="{{ veiculo.cor|default:'' }}"></label>
+  <label class="form-label">KM<input class="form-control" name="km" type="number" value="{{ veiculo.km|default:'' }}"></label>
+  <label class="form-label">Chassi<input class="form-control" name="chassi" value="{{ veiculo.chassi|default:'' }}"></label>
+  <label class="form-label">Observações<textarea class="form-control" name="observacoes" rows="3">{{ veiculo.observacoes|default:'' }}</textarea></label>
+  <button class="btn btn-primary" type="submit">Salvar</button>
+</form>
+{% endblock %}

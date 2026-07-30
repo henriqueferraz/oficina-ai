@@ -1,0 +1,14 @@
+{% for m in conversa.mensagens.all %}
+  {% if m.papel == "user" or m.papel == "assistant" %}
+  <div class="bubble {{ m.papel }}">
+    {% if m.audio %}
+    <audio class="chat-audio-player" controls preload="metadata" src="{{ m.audio.url }}">
+      Seu navegador não reproduz áudio.
+    </audio>
+    {% endif %}
+    <div class="bubble-text">{{ m.conteudo }}</div>
+  </div>
+  {% endif %}
+{% empty %}
+  <div class="bubble assistant">Olá! Posso buscar OS, clientes ou dar um resumo da oficina. Envie texto ou áudio.</div>
+{% endfor %}

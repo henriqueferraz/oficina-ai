@@ -1,0 +1,57 @@
+---
+description: Regra de ouro — responsividade mobile-first em todo o sistema
+alwaysApply: true
+---
+
+# Responsividade (regra de ouro)
+
+Toda tela, formulário, tabela, modal e componente **deve funcionar bem em mobile**, tablet e desktop. Responsividade não é opcional nem “depois”.
+
+## Stack
+
+- Use **Bootstrap 5.3.8** (grid `row`/`col-*`, utilitários `d-*`, `table-responsive`, offcanvas, modal).
+- Tema escuro: `data-bs-theme="dark"` + variáveis `--bs-*` em `static/css/app.css`.
+- Menu no mobile: hamburger + offcanvas (`#menuLateral`); sidebar fixa só a partir de `lg`.
+
+## Componentes Bootstrap (obrigatório)
+
+- Botões: `btn btn-primary` (ação principal do formulário/CTA) ou `btn btn-outline-secondary` (navegação/secundário). Compacto: `btn-sm`. Não usar padding/font-size inline.
+- Campos: `form-control` / `form-select` + `form-label` (checkbox: `form-check`). Altura alinhada aos botões (2.5rem).
+- Painéis: `card` + `card-body` (+ `card-title` nos títulos).
+- Tabelas: `table table-sm align-middle` dentro de `table-responsive`.
+- Toolbar do `page-head`: no máximo um `btn-primary`; demais ações em outline.
+
+## Obrigatório em UI nova ou alterada
+
+1. **Mobile-first**: layout de 1 coluna no celular; enriquecer com `md`/`lg`.
+2. **Sem larguras fixas** que quebrem o viewport (`min-width` alto, `grid` de N colunas sem breakpoint).
+3. **Tabelas** sempre em `.table-responsive` (ou equivalente com overflow).
+4. **Formulários multi-campo** empilham no mobile (ex.: `.item-form`); grid só em `md+`.
+5. **Toolbar / page-head** com `flex-wrap`; botões e busca não estouram a tela.
+6. **Kanban / carrosséis** com scroll horizontal e coluna `min(..., 78vw)`.
+7. **Testar mentalmente** em ~375px e ~1280px antes de considerar pronto.
+
+## Evitar
+
+```html
+<!-- ❌ BAD -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+<form style="grid-template-columns:120px 1fr 1fr 100px 120px auto">
+<input style="min-width:200px">
+```
+
+```html
+<!-- ✅ GOOD -->
+<div class="row g-3">
+  <div class="col-12 col-lg-6">...</div>
+</div>
+<form class="item-form">...</form>
+<input class="form-control" style="min-width:min(200px,100%)">
+```
+
+## Checklist rápido
+
+- [ ] Cabeçalho e ações não overflow
+- [ ] Conteúdo legível sem zoom horizontal na página
+- [ ] Menu acessível no mobile (hamburger)
+- [ ] CSS custom não anula `d-none` / grid do Bootstrap sem `!important` consciente

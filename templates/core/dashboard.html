@@ -1,0 +1,131 @@
+{% extends "layouts/base.html" %}
+{% block title %}Painel — Oficina AI{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Painel</h1>
+    <p>{{ oficina.nome }} — visão do dia</p>
+  </div>
+  <div class="toolbar">
+    {% if pode_ordens %}
+    <a class="btn btn-primary" href="{% url 'ordens:criar' %}">Nova OS</a>
+    {% endif %}
+    {% if pode_agente %}
+    <a class="btn btn-outline-secondary" href="{% url 'agentes:painel' %}">Falar com IA</a>
+    {% endif %}
+  </div>
+</div>
+
+<section class="card card-busca-rapida">
+  <form method="get" action="{% url 'core:busca' %}" class="toolbar" style="margin:0">
+    <input type="search" name="q" class="form-control search" placeholder="Buscar OS, cliente, placa…" aria-label="Buscar OS, cliente ou placa">
+    <button type="submit" class="btn btn-primary">Buscar</button>
+  </form>
+</section>
+
+<section class="stats">
+  <div class="stat"><div class="label">OS abertas</div><div class="value">{{ os_abertas }}</div></div>
+  <div class="stat"><div class="label">Prontas</div><div class="value">{{ os_prontas }}</div></div>
+  <div class="stat"><div class="label">Orçamentos</div><div class="value">{{ orcamentos_pendentes }}</div></div>
+  <div class="stat"><div class="label">Clientes</div><div class="value">{{ total_clientes }}</div></div>
+  {% if pode_painel_caixa %}
+  <div class="stat"><div class="label">Caixa</div><div class="value">R$ {{ caixa }}</div></div>
+  {% endif %}
+  {% if conversao %}
+  <div class="stat"><div class="label">Conversão</div><div class="value">{{ conversao.taxa_percentual }}%</div></div>
+  {% endif %}
+  {% if margem %}
+  <div class="stat"><div class="label">Margem</div><div class="value">{{ margem.margem_percentual }}%</div></div>
+  {% endif %}
+</section>
+
+<section class="card card-kanban">
+  <h2 class="card-title">Kanban da oficina</h2>
+  <div class="kanban">
+    {% for col in kanban %}
+    <div class="kanban-col">
+      <h3>
+        <span>{{ col.label }}</span>
+        <span class="kanban-count">{{ col.ordens|length }}</span>
+      </h3>
+      {% for o in col.ordens %}
+      <a class="os-card" href="{% url 'ordens:detalhe' o.pk %}">
+        <div class="os-card-top">
+          <span class="os-card-num">#{{ o.numero }}</span>
+          <span class="badge {% if o.prioridade == 'urgente' or o.prioridade == 'alta' %}warn{% endif %}">{{ o.get_prioridade_display }}</span>
+        </div>
+        <strong class="os-card-cliente">{{ o.cliente.nome }}</strong>
+        <span class="os-card-meta">{% if o.veiculo %}{{ o.veiculo.placa }}{% else %}sem veículo{% endif %}</span>
+        {% with itens=o.itens.all %}
+        {% if itens %}
+        <ul class="os-card-itens">
+          {% for i in itens %}
+          <li>
+            <span class="os-card-item-tipo">{{ i.get_tipo_display }}</span>
+            {% if i.servico %}{{ i.servico.nome }}{% elif i.peca %}{{ i.peca.nome }}{% else %}{{ i.descricao }}{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+      </a>
+      {% empty %}
+      <p class="kanban-empty">Vazio</p>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+{% if pode_painel_ordens_recentes or pode_painel_estoque %}
+<div class="row g-3">
+  {% if pode_painel_ordens_recentes %}
+  <div class="col-12 {% if pode_painel_estoque %}col-lg-8{% endif %}">
+  <section class="card card-body">
+    <h2 class="card-title">Ordens recentes</h2>
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>OS</th><th>Cliente</th><th>Itens</th><th>Status</th><th>Total</th></tr></thead>
+      <tbody>
+      {% for o in ordens_recentes %}
+        <tr>
+          <td><a href="{% url 'ordens:detalhe' o.pk %}">#{{ o.numero }}</a></td>
+          <td>{{ o.cliente.nome }}</td>
+          <td class="cell-itens">
+            {% with itens=o.itens.all %}
+            {% if itens %}
+              {% for i in itens %}{% if i.servico %}{{ i.servico.nome }}{% elif i.peca %}{{ i.peca.nome }}{% else %}{{ i.descricao }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}
+            {% else %}
+              Sem itens
+            {% endif %}
+            {% endwith %}
+          </td>
+          <td><span class="badge">{{ o.get_status_display }}</span></td>
+          <td>R$ {{ o.total }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">Nenhuma OS ainda.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  </div>
+  {% endif %}
+  {% if pode_painel_estoque %}
+  <div class="col-12 {% if pode_painel_ordens_recentes %}col-lg-4{% endif %}">
+  <section class="card card-body">
+    <h2 class="card-title">Estoque baixo</h2>
+    <ul style="margin:0;padding-left:1.1rem;color:var(--muted)">
+      {% for p in pecas_estoque_baixo %}
+      <li>{{ p.nome }} — {{ p.estoque }} {{ p.unidade }}</li>
+      {% empty %}
+      <li>Tudo ok no estoque.</li>
+      {% endfor %}
+    </ul>
+  </section>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

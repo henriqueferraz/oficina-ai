@@ -1,0 +1,280 @@
+{% extends "layouts/base.html" %}
+{% block title %}OS #{{ ordem.numero }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>OS #{{ ordem.numero }}</h1>
+    <p>{{ ordem.cliente.nome }}{% if ordem.veiculo %} · {{ ordem.veiculo }}{% endif %}
+      {% if ordem.orcamento %} · Orç. #{{ ordem.orcamento.numero }}{% endif %}
+    </p>
+  </div>
+  <div class="toolbar">
+    <a class="btn btn-outline-secondary" href="{% url 'ordens:pdf' ordem.pk %}" target="_blank">PDF</a>
+    <a class="btn btn-outline-secondary" href="{% url 'ordens:recibo' ordem.pk %}" target="_blank">Recibo</a>
+    {% if ordem.token_publico %}
+    <a class="btn btn-outline-secondary" href="{% url 'portal:os_publica' ordem.token_publico %}" target="_blank">Link do cliente</a>
+    {% endif %}
+    {% if pode_financeiro %}
+    <a class="btn btn-outline-secondary" href="{% url 'financeiro:criar' %}?ordem={{ ordem.pk }}">Lançar pagamento</a>
+    {% endif %}
+    <div id="os-status">
+      {% include "ordens/partials/status_badge.html" %}
+    </div>
+  </div>
+</div>
+
+<section class="card card-body">
+  <h2 class="card-title">Status e prioridade</h2>
+  <form method="post" action="{% url 'ordens:atualizar_status' ordem.pk %}"
+        hx-post="{% url 'ordens:atualizar_status' ordem.pk %}"
+        hx-target="#os-status" hx-swap="innerHTML"
+        class="toolbar">
+    {% csrf_token %}
+    <select class="form-select" name="status">
+      {% for value, label in status_choices %}
+      <option value="{{ value }}" {% if ordem.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-primary" type="submit">Atualizar</button>
+  </form>
+  <form method="post" action="{% url 'ordens:atualizar_responsavel' ordem.pk %}" class="toolbar" style="margin-top:.75rem">
+    {% csrf_token %}
+    <label class="form-label" style="margin:0">Mecânico responsável
+      <select class="form-select" name="responsavel">
+        <option value="">— sem responsável —</option>
+        {% for m in mecanicos %}
+        <option value="{{ m.user_id }}" {% if ordem.responsavel_id == m.user_id %}selected{% endif %}>
+          {{ m.user.get_username }} ({{ m.get_papel_display }})
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn btn-primary" type="submit">Salvar</button>
+  </form>
+  {% if ordem.estoque_baixado %}
+  <p style="margin-top:.75rem"><span class="badge ok">Estoque baixado</span></p>
+  {% endif %}
+  {% if ordem.diagnostico %}
+  <p style="margin-top:1rem;color:var(--muted)"><strong style="color:var(--text)">Diagnóstico:</strong> {{ ordem.diagnostico }}</p>
+  {% endif %}
+</section>
+
+{% if pix %}
+<section class="card card-body" id="pix-pagamento">
+  <h2 class="card-title">Pagamento Pix</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:flex-start">
+    <img src="{{ pix.qr_data_uri }}" alt="QR Code Pix" width="180" height="180"
+         style="border-radius:12px;background:#fff;padding:8px">
+    <div style="flex:1;min-width:220px">
+      <p style="margin:0 0 .5rem"><strong>Valor:</strong> R$ {{ pix.valor }}</p>
+      <p style="margin:0 0 .5rem;color:var(--muted)">Recebedor: {{ pix.nome }}</p>
+      <p style="margin:0 0 .75rem;color:var(--muted);font-size:.85rem">Chave: {{ pix.chave }}</p>
+      <label class="form-label">Copia e cola
+        <textarea class="form-control" readonly rows="4" style="font-size:.75rem;word-break:break-all">{{ pix.payload }}</textarea>
+      </label>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<section class="card card-body">
+  <h2 class="card-title">Itens — total R$ {{ ordem.total }}</h2>
+  <div id="os-itens">{% include "ordens/partials/itens.html" %}</div>
+  <form class="item-form"
+        method="post" action="{% url 'ordens:adicionar_item' ordem.pk %}"
+        hx-post="{% url 'ordens:adicionar_item' ordem.pk %}"
+        hx-target="#os-itens" hx-swap="innerHTML">
+    {% csrf_token %}
+    <label class="form-label">Tipo
+      <select class="form-select" name="tipo" id="os-tipo">
+        <option value="servico">Serviço</option>
+        <option value="peca">Peça</option>
+      </select>
+    </label>
+    <label class="form-label">Catálogo
+      <select class="form-select" name="servico_id" id="os-servico">
+        <option value="">Livre / serviço…</option>
+        {% for s in servicos %}
+        <option value="{{ s.pk }}" data-preco="{{ s.preco|stringformat:'.2f' }}" data-nome="{{ s.nome }}">{{ s.nome }} — R$ {{ s.preco }}</option>
+        {% endfor %}
+      </select>
+      <select class="form-select" name="peca_id" id="os-peca" style="display:none">
+        <option value="">Livre / peça…</option>
+        {% for p in pecas %}
+        <option value="{{ p.pk }}" data-preco="{{ p.preco|stringformat:'.2f' }}" data-nome="{{ p.nome }}">{{ p.nome }} — R$ {{ p.preco }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="form-label">Descrição<input class="form-control" name="descricao" id="os-desc"></label>
+    <label class="form-label">Qtd<input class="form-control" name="quantidade" type="number" step="0.01" value="1"></label>
+    <label class="form-label">Valor<input class="form-control" name="valor_unitario" id="os-valor" type="number" step="0.01" value="0"></label>
+    <button class="btn btn-primary" type="submit">Adicionar</button>
+  </form>
+</section>
+
+<div class="row g-3">
+  <div class="col-12 col-md-6">
+  <section class="card card-body">
+    <h2 class="card-title">Checklist — entrada</h2>
+    <ul style="list-style:none;padding:0;margin:0">
+      {% for item in checklist_entrada %}
+      <li style="display:flex;align-items:center;gap:.75rem;padding:.45rem 0;border-bottom:1px solid var(--line)">
+        <form method="post" action="{% url 'ordens:checklist_toggle' ordem.pk item.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-secondary" type="submit" aria-label="Alternar item">
+            {% if item.ok %}✓{% else %}○{% endif %}
+          </button>
+        </form>
+        <span {% if item.ok %}style="text-decoration:line-through;color:var(--muted)"{% endif %}>{{ item.item }}</span>
+      </li>
+      {% empty %}
+      <li style="color:var(--muted)">Nenhum item.</li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{% url 'ordens:checklist_add' ordem.pk %}" class="toolbar mt-3">
+      {% csrf_token %}
+      <input type="hidden" name="momento" value="entrada">
+      <input class="form-control" name="item" placeholder="Novo item de entrada" required style="flex:1;min-width:min(160px,100%)">
+      <button class="btn btn-primary" type="submit">Adicionar</button>
+    </form>
+  </section>
+  </div>
+
+  <div class="col-12 col-md-6">
+  <section class="card card-body">
+    <h2 class="card-title">Checklist — saída</h2>
+    <ul style="list-style:none;padding:0;margin:0">
+      {% for item in checklist_saida %}
+      <li style="display:flex;align-items:center;gap:.75rem;padding:.45rem 0;border-bottom:1px solid var(--line)">
+        <form method="post" action="{% url 'ordens:checklist_toggle' ordem.pk item.pk %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-secondary" type="submit" aria-label="Alternar item">
+            {% if item.ok %}✓{% else %}○{% endif %}
+          </button>
+        </form>
+        <span {% if item.ok %}style="text-decoration:line-through;color:var(--muted)"{% endif %}>{{ item.item }}</span>
+      </li>
+      {% empty %}
+      <li style="color:var(--muted)">Nenhum item.</li>
+      {% endfor %}
+    </ul>
+    <form method="post" action="{% url 'ordens:checklist_add' ordem.pk %}" class="toolbar mt-3">
+      {% csrf_token %}
+      <input type="hidden" name="momento" value="saida">
+      <input class="form-control" name="item" placeholder="Novo item de saída" required style="flex:1;min-width:min(160px,100%)">
+      <button class="btn btn-primary" type="submit">Adicionar</button>
+    </form>
+  </section>
+  </div>
+</div>
+
+<section class="card card-body">
+  <h2 class="card-title">Fotos <span class="badge">{{ ordem.fotos.count }}/{{ max_fotos }}</span></h2>
+  <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:1rem">
+    {% for foto in ordem.fotos.all %}
+    <figure style="margin:0;width:140px;position:relative">
+      <a href="{{ foto.imagem.url }}" target="_blank">
+        <img src="{{ foto.imagem.url }}" alt="{{ foto.legenda }}"
+             style="width:140px;height:100px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">
+      </a>
+      {% if foto.legenda %}<figcaption style="font-size:.75rem;color:var(--muted);margin-top:.35rem">{{ foto.legenda }}</figcaption>{% endif %}
+      <form method="post" action="{% url 'ordens:foto_delete' ordem.pk foto.pk %}" style="margin-top:.35rem">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Remover</button>
+      </form>
+    </figure>
+    {% empty %}
+    <p style="color:var(--muted);margin:0">Nenhuma foto. Envie até {{ max_fotos }} imagens do veículo/dano.</p>
+    {% endfor %}
+  </div>
+  {% if ordem.fotos_restantes > 0 %}
+  <form method="post" action="{% url 'ordens:foto_upload' ordem.pk %}" enctype="multipart/form-data" class="toolbar">
+    {% csrf_token %}
+    <input class="form-control" type="file" name="imagens" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple capture="environment" required>
+    <input class="form-control" name="legenda" placeholder="Legenda (opcional)" style="max-width:min(220px,100%)">
+    <button class="btn btn-primary" type="submit">Enviar fotos</button>
+  </form>
+  <p style="color:var(--muted);font-size:.85rem;margin:.5rem 0 0">Restam {{ ordem.fotos_restantes }} foto(s). JPG, PNG ou WebP · salvas em 1280×1280 · até 500&nbsp;KB.</p>
+  {% else %}
+  <p style="color:var(--muted);margin:0">Limite de {{ max_fotos }} fotos atingido. Remova alguma para enviar outra.</p>
+  {% endif %}
+</section>
+
+<section class="card card-body">
+  <h2 class="card-title">Vídeo <span class="badge">1 stream</span></h2>
+  {% if ordem.video_url %}
+    {% if ordem.video_embed_url %}
+    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;border:1px solid var(--line);margin-bottom:1rem;max-width:640px">
+      <iframe src="{{ ordem.video_embed_url }}" title="{{ ordem.video_titulo|default:'Vídeo da OS' }}"
+              style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen loading="lazy"></iframe>
+    </div>
+    {% else %}
+    <p style="margin:0 0 1rem">
+      <a href="{{ ordem.video_url }}" target="_blank" rel="noopener">
+        {{ ordem.video_titulo|default:ordem.video_url }}
+      </a>
+    </p>
+    {% endif %}
+  {% endif %}
+  <form method="post" action="{% url 'ordens:video_salvar' ordem.pk %}" class="d-grid gap-3 form-narrow" style="max-width:560px">
+    {% csrf_token %}
+    <label class="form-label">URL do vídeo (YouTube, Vimeo ou outro stream)
+      <input class="form-control" type="url" name="video_url" id="video-url-input" value="{{ ordem.video_url }}" placeholder="https://www.youtube.com/watch?v=…">
+    </label>
+    <label class="form-label">Título (opcional)
+      <input class="form-control" name="video_titulo" value="{{ ordem.video_titulo }}" placeholder="Ex.: Vídeo da inspeção">
+    </label>
+    <div class="toolbar">
+      <button class="btn btn-primary" type="submit">Salvar vídeo</button>
+      {% if ordem.video_url %}
+      <button class="btn btn-outline-secondary" type="button" id="btn-remover-video">Remover vídeo</button>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
+<script>
+(function () {
+  const tipo = document.getElementById('os-tipo');
+  const servico = document.getElementById('os-servico');
+  const peca = document.getElementById('os-peca');
+  const desc = document.getElementById('os-desc');
+  const valor = document.getElementById('os-valor');
+  function limparCampos() {
+    desc.value = '';
+    valor.value = '0';
+  }
+  function sync() {
+    const isPeca = tipo.value === 'peca';
+    servico.style.display = isPeca ? 'none' : '';
+    peca.style.display = isPeca ? '' : 'none';
+    if (isPeca) servico.value = ''; else peca.value = '';
+    limparCampos();
+  }
+  function fillFrom(sel) {
+    const opt = sel.selectedOptions[0];
+    if (!opt || !opt.value) {
+      limparCampos();
+      return;
+    }
+    desc.value = opt.dataset.nome || opt.textContent.split(' — ')[0].trim();
+    if (opt.dataset.preco) valor.value = opt.dataset.preco.replace(',', '.');
+  }
+  tipo.addEventListener('change', sync);
+  servico.addEventListener('change', () => fillFrom(servico));
+  peca.addEventListener('change', () => fillFrom(peca));
+  sync();
+
+  const btnRemover = document.getElementById('btn-remover-video');
+  if (btnRemover) {
+    btnRemover.addEventListener('click', function () {
+      const input = document.getElementById('video-url-input');
+      input.value = '';
+      input.form.submit();
+    });
+  }
+})();
+</script>
+{% endblock %}

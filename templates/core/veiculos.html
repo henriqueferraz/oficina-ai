@@ -1,0 +1,30 @@
+{% extends "layouts/base.html" %}
+{% block title %}Veículos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Veículos</h1><p>Histórico por placa</p></div>
+  <a class="btn btn-primary" href="{% url 'core:veiculo_create' %}">Novo veículo</a>
+</div>
+<section class="card card-body">
+  <input class="form-control search" type="search" name="q" placeholder="Buscar placa, marca ou cliente..."
+         value="{{ q }}"
+         onchange="location.href='?q='+encodeURIComponent(this.value)"
+         onkeydown="if(event.key==='Enter'){location.href='?q='+encodeURIComponent(this.value)}">
+  <table class="table table-sm align-middle" style="margin-top:1rem">
+    <thead><tr><th>Placa</th><th>Veículo</th><th>Cliente</th><th>KM</th><th></th></tr></thead>
+    <tbody>
+    {% for v in veiculos %}
+      <tr>
+        <td>{{ v.placa }}</td>
+        <td>{{ v.marca }} {{ v.modelo }} {% if v.ano %}({{ v.ano }}){% endif %}</td>
+        <td>{{ v.cliente.nome }}</td>
+        <td>{{ v.km|default:"—" }}</td>
+        <td><a href="{% url 'core:veiculo_edit' v.pk %}">Editar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Nenhum veículo cadastrado.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

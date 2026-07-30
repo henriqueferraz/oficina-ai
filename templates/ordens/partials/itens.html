@@ -1,0 +1,17 @@
+<table class="table table-sm align-middle">
+  <thead><tr><th>Tipo</th><th>Descrição</th><th>Qtd</th><th>Unit.</th><th>Total</th></tr></thead>
+  <tbody>
+  {% for i in ordem.itens.all %}
+    <tr>
+      <td>{{ i.get_tipo_display }}</td>
+      <td>{{ i.descricao }}</td>
+      <td>{{ i.quantidade }}</td>
+      <td>R$ {{ i.valor_unitario }}</td>
+      <td>R$ {{ i.total }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5">Sem itens.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p style="margin:.75rem 0 0;color:var(--muted)">Total: <strong style="color:var(--text)">R$ {{ ordem.total }}</strong></p>

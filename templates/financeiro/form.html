@@ -1,0 +1,32 @@
+{% extends "layouts/base.html" %}
+{% block title %}Novo lançamento{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Novo lançamento</h1></div></div>
+<form method="post" class="card card-body d-grid gap-3 form-narrow">
+  {% csrf_token %}
+  <label class="form-label">Tipo
+    <select class="form-select" name="tipo">{% for v,l in tipos %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+  </label>
+  <label class="form-label">Descrição<input class="form-control" name="descricao" required></label>
+  <label class="form-label">Valor<input class="form-control" type="number" step="0.01" name="valor" required></label>
+  <label class="form-label">Forma
+    <select class="form-select" name="forma">{% for v,l in formas %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select>
+  </label>
+  <label class="form-label">Ordem de serviço (opcional)
+    <select class="form-select" name="ordem">
+      <option value="">— sem vínculo —</option>
+      {% for o in ordens %}
+      <option value="{{ o.pk }}" {% if ordem_preselecionada == o.pk|stringformat:"s" %}selected{% endif %}>
+        OS #{{ o.numero }} — {{ o.cliente.nome }} (R$ {{ o.total }})
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Data<input class="form-control" type="date" name="data" value="{{ hoje|date:'Y-m-d' }}"></label>
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="pago" id="pago" checked>
+    <label class="form-check-label" for="pago">Já pago</label>
+  </div>
+  <button class="btn btn-primary" type="submit">Salvar</button>
+</form>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% load formatadores %}
+{% for c in clientes %}
+<tr>
+  <td>{{ c.nome }}</td>
+  <td>{{ c.telefone|telefone|default:"—" }}</td>
+  <td>{{ c.documento|default:"—" }}</td>
+  <td>{{ c.email|default:"—" }}</td>
+</tr>
+{% empty %}
+<tr><td colspan="4">Nenhum cliente encontrado.</td></tr>
+{% endfor %}

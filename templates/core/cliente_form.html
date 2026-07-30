@@ -1,0 +1,16 @@
+{% extends "layouts/base.html" %}
+{% block title %}Novo cliente{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Novo cliente</h1><p>Cadastro básico</p></div>
+</div>
+<form method="post" class="card card-body d-grid gap-3 form-narrow">
+  {% csrf_token %}
+  <label class="form-label">Nome<input class="form-control" name="nome" value="{{ form_data.nome|default:'' }}" required></label>
+  <label class="form-label">CPF<input class="form-control" name="documento" value="{{ form_data.documento|default:'' }}" data-mask="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" autocomplete="off"></label>
+  <label class="form-label">Telefone<input class="form-control" name="telefone" value="{{ form_data.telefone|default:'' }}" data-mask="telefone" inputmode="tel" maxlength="15" placeholder="(11) 98765-4321"></label>
+  <label class="form-label">E-mail<input class="form-control" type="email" name="email" value="{{ form_data.email|default:'' }}"></label>
+  <label class="form-label">Endereço<input class="form-control" name="endereco" value="{{ form_data.endereco|default:'' }}"></label>
+  <button class="btn btn-primary" type="submit">Salvar</button>
+</form>
+{% endblock %}

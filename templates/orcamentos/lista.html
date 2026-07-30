@@ -1,0 +1,26 @@
+{% extends "layouts/base.html" %}
+{% block title %}Orçamentos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Orçamentos</h1><p>Do rascunho à aprovação</p></div>
+  <a class="btn btn-primary" href="{% url 'orcamentos:criar' %}">Novo orçamento</a>
+</div>
+<section class="card card-body">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>#</th><th>Cliente</th><th>Status</th><th>Total</th><th>Data</th></tr></thead>
+    <tbody>
+    {% for o in orcamentos %}
+      <tr>
+        <td><a href="{% url 'orcamentos:detalhe' o.pk %}">#{{ o.numero }}</a></td>
+        <td>{{ o.cliente.nome }}</td>
+        <td><span class="badge">{{ o.get_status_display }}</span></td>
+        <td>R$ {{ o.total }}</td>
+        <td>{{ o.criado_em|date:"d/m/Y" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Nenhum orçamento.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

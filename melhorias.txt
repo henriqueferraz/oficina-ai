@@ -1,0 +1,1 @@
+em veículos no cadastro de veículos, utilizar a sqlite da tabela fipe para preencher o campo marca, modelo e ano, para agilizar o cadastro. [ADIADO]

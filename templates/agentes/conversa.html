@@ -1,0 +1,128 @@
+{% extends "layouts/base.html" %}
+{% block title %}{{ conversa.titulo }} — Agente{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ conversa.titulo|default:"Conversa" }}</h1>
+    <p>Texto ou áudio. Sem OPENAI_API_KEY, a transcrição e a IA ficam limitadas.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{% url 'agentes:painel' %}">Voltar</a>
+</div>
+<section class="card card-body chat">
+  <div class="messages" id="mensagens">
+    {% include "agentes/partials/mensagens.html" %}
+  </div>
+  <form class="chat-form" method="post" enctype="multipart/form-data"
+        hx-post="{% url 'agentes:conversa' conversa.pk %}"
+        hx-encoding="multipart/form-data"
+        hx-target="#mensagens"
+        hx-swap="innerHTML"
+        hx-on::after-request="window.oficinaChatReset && window.oficinaChatReset(this)">
+    {% csrf_token %}
+    <input class="form-control" name="mensagem" id="chat-mensagem"
+           placeholder="Ex: status da OS do João / ou grave um áudio"
+           autocomplete="off" style="min-width:min(160px,100%)">
+    <div class="chat-audio-actions">
+      <label class="btn btn-outline-secondary chat-audio-file" for="chat-audio">
+        Áudio
+        <input class="form-control" type="file" name="audio" id="chat-audio" accept="audio/*,.ogg,.mp3,.wav,.webm,.m4a" hidden>
+      </label>
+      <button class="btn btn-outline-secondary" type="button" id="chat-gravar" aria-pressed="false">Gravar</button>
+      <span class="chat-audio-status text-muted small" id="chat-audio-status" aria-live="polite"></span>
+    </div>
+    <button class="btn btn-primary" type="submit">Enviar</button>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const form = document.querySelector(".chat-form");
+  if (!form) return;
+  const inputAudio = document.getElementById("chat-audio");
+  const btnGravar = document.getElementById("chat-gravar");
+  const statusEl = document.getElementById("chat-audio-status");
+  const inputMsg = document.getElementById("chat-mensagem");
+  let recorder = null;
+  let chunks = [];
+  let gravando = false;
+
+  function setStatus(texto) {
+    if (statusEl) statusEl.textContent = texto || "";
+  }
+
+  window.oficinaChatReset = function (el) {
+    el.reset();
+    chunks = [];
+    if (inputAudio) inputAudio.value = "";
+    setStatus("");
+    if (gravando && recorder) {
+      try { recorder.stop(); } catch (e) {}
+      gravando = false;
+      if (btnGravar) {
+        btnGravar.textContent = "Gravar";
+        btnGravar.setAttribute("aria-pressed", "false");
+      }
+    }
+  };
+
+  if (inputAudio) {
+    inputAudio.addEventListener("change", function () {
+      const f = inputAudio.files && inputAudio.files[0];
+      setStatus(f ? ("Arquivo: " + f.name) : "");
+    });
+  }
+
+  if (btnGravar && navigator.mediaDevices && window.MediaRecorder) {
+    btnGravar.addEventListener("click", async function () {
+      if (gravando && recorder) {
+        recorder.stop();
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        chunks = [];
+        const mime = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+        recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+        recorder.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          gravando = false;
+          btnGravar.textContent = "Gravar";
+          btnGravar.setAttribute("aria-pressed", "false");
+          if (!chunks.length) {
+            setStatus("Gravação vazia");
+            return;
+          }
+          const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+          const file = new File([blob], "gravacao.webm", { type: blob.type });
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          inputAudio.files = dt.files;
+          setStatus("Áudio gravado — toque em Enviar");
+        };
+        recorder.start();
+        gravando = true;
+        btnGravar.textContent = "Parar";
+        btnGravar.setAttribute("aria-pressed", "true");
+        setStatus("Gravando…");
+      } catch (err) {
+        setStatus("Microfone indisponível");
+      }
+    });
+  } else if (btnGravar) {
+    btnGravar.disabled = true;
+    btnGravar.title = "Gravação não suportada neste navegador";
+  }
+
+  form.addEventListener("submit", function (e) {
+    const temTexto = (inputMsg.value || "").trim().length > 0;
+    const temAudio = inputAudio && inputAudio.files && inputAudio.files.length > 0;
+    if (!temTexto && !temAudio) {
+      e.preventDefault();
+      setStatus("Digite uma mensagem ou anexe/grave um áudio");
+    }
+  });
+})();
+</script>
+{% endblock %}

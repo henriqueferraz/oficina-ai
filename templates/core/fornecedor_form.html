@@ -1,0 +1,21 @@
+{% extends "layouts/base.html" %}
+{% block title %}{% if fornecedor %}Editar{% else %}Novo{% endif %} fornecedor{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{% if fornecedor %}Editar fornecedor{% else %}Novo fornecedor{% endif %}</h1></div>
+</div>
+<form method="post" class="card card-body d-grid gap-3 form-narrow">
+  {% csrf_token %}
+  <label class="form-label">Nome<input class="form-control" name="nome" required value="{{ fornecedor.nome|default:'' }}"></label>
+  <label class="form-label">Documento<input class="form-control" name="documento" value="{{ fornecedor.documento|default:'' }}"></label>
+  <label class="form-label">Telefone<input class="form-control" name="telefone" value="{{ fornecedor.telefone|default:'' }}" data-mask="telefone" inputmode="tel" maxlength="15" placeholder="(11) 98765-4321"></label>
+  <label class="form-label">E-mail<input class="form-control" type="email" name="email" value="{{ fornecedor.email|default:'' }}"></label>
+  {% if fornecedor %}
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" name="ativo" id="fornecedor-ativo" {% if fornecedor.ativo %}checked{% endif %}>
+    <label class="form-check-label" for="fornecedor-ativo">Ativo</label>
+  </div>
+  {% endif %}
+  <button class="btn btn-primary" type="submit">Salvar</button>
+</form>
+{% endblock %}

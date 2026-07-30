@@ -1,0 +1,28 @@
+{% extends "layouts/base.html" %}
+{% block title %}Nova OS{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Nova ordem de serviço</h1></div></div>
+<form method="post" class="card card-body d-grid gap-3 form-narrow">
+  {% csrf_token %}
+  <label class="form-label">Cliente
+    <select class="form-select" name="cliente" required>
+      <option value="">Selecione</option>
+      {% for c in clientes %}<option value="{{ c.id }}">{{ c.nome }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Veículo
+    <select class="form-select" name="veiculo">
+      <option value="">Opcional</option>
+      {% for v in veiculos %}<option value="{{ v.id }}">{{ v.placa }} — {{ v.cliente.nome }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Prioridade
+    <select class="form-select" name="prioridade">
+      {% for value, label in prioridades %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Diagnóstico<textarea class="form-control" name="diagnostico" rows="3"></textarea></label>
+  <label class="form-label">Observações<textarea class="form-control" name="observacoes" rows="2"></textarea></label>
+  <button class="btn btn-primary" type="submit">Abrir OS</button>
+</form>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "layouts/base.html" %}
+{% block title %}Comissões{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Comissões por mecânico</h1>
+    <p>Padrão da oficina: {{ comissao_padrao }}% sobre OS entregues</p>
+  </div>
+</div>
+<section class="card card-body">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Mecânico</th>
+        <th>%</th>
+        <th>OS entregues</th>
+        <th>Faturamento</th>
+        <th>Comissão</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in comissoes %}
+      <tr>
+        <td>{{ c.user.get_username }}</td>
+        <td>{{ c.percentual }}%</td>
+        <td>{{ c.ordens }}</td>
+        <td>R$ {{ c.faturamento }}</td>
+        <td>R$ {{ c.comissao }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Nenhuma comissão calculada. Atribua responsáveis nas OS.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "layouts/base.html" %}
+{% block title %}Clientes{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Clientes</h1>
+    <p>Busca rápida com HTMX</p>
+  </div>
+  <a class="btn btn-primary" href="{% url 'core:cliente_create' %}">Novo cliente</a>
+</div>
+
+<div class="card card-body">
+  <input class="form-control search" type="search" name="q" placeholder="Buscar nome, telefone ou CPF..."
+         value="{{ q }}"
+         hx-get="{% url 'core:clientes' %}"
+         hx-trigger="keyup changed delay:300ms, search"
+         hx-target="#cliente-rows"
+         hx-swap="innerHTML">
+  <table class="table table-sm align-middle" style="margin-top:1rem">
+    <thead><tr><th>Nome</th><th>Telefone</th><th>CPF</th><th>E-mail</th></tr></thead>
+    <tbody id="cliente-rows">
+      {% include "core/partials/cliente_rows.html" %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

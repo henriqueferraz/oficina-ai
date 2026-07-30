@@ -1,0 +1,50 @@
+{% extends "portal/base.html" %}
+{% block title %}Orçamento #{{ orcamento.numero }} — {{ oficina.nome }}{% endblock %}
+{% block content %}
+<section class="card card-body">
+  <h2 class="card-title">Orçamento #{{ orcamento.numero }}</h2>
+  <p style="color:var(--muted);margin:.5rem 0 1rem">
+    {{ orcamento.cliente.nome }}
+    {% if orcamento.veiculo %} · {{ orcamento.veiculo }}{% endif %}
+  </p>
+  <p><span class="badge">{{ orcamento.get_status_display }}</span></p>
+  {% if orcamento.observacoes %}
+  <p style="margin-top:1rem"><strong>Observações:</strong> {{ orcamento.observacoes }}</p>
+  {% endif %}
+</section>
+
+<section class="card card-body">
+  <h2 class="card-title">Itens — total R$ {{ orcamento.total }}</h2>
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Descrição</th><th>Qtd</th><th>Total</th></tr></thead>
+    <tbody>
+    {% for i in itens %}
+      <tr>
+        <td>{{ i.descricao }}</td>
+        <td>{{ i.quantidade }}</td>
+        <td>R$ {{ i.total }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3">Sem itens.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if pode_decidir %}
+<section class="card card-body">
+  <h2 class="card-title">Sua decisão</h2>
+  <p style="color:var(--muted)">Aprove ou recuse este orçamento.</p>
+  <div class="toolbar" style="margin-top:1rem">
+    <form method="post" action="{% url 'portal:orcamento_aprovar' orcamento.token_publico %}">
+      {% csrf_token %}
+      <button class="btn btn-primary" type="submit">Aprovar</button>
+    </form>
+    <form method="post" action="{% url 'portal:orcamento_recusar' orcamento.token_publico %}">
+      {% csrf_token %}
+      <button class="btn btn-outline-secondary" type="submit">Recusar</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

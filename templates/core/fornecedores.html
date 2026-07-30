@@ -1,0 +1,27 @@
+{% extends "layouts/base.html" %}
+{% load formatadores %}
+{% block title %}Fornecedores{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Fornecedores</h1><p>Cadastro de fornecedores de peças</p></div>
+  <a class="btn btn-primary" href="{% url 'core:fornecedor_create' %}">Novo fornecedor</a>
+</div>
+<section class="card card-body">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Nome</th><th>Documento</th><th>Telefone</th><th>E-mail</th><th></th></tr></thead>
+    <tbody>
+    {% for f in fornecedores %}
+      <tr>
+        <td>{{ f.nome }}</td>
+        <td>{{ f.documento|default:"—" }}</td>
+        <td>{{ f.telefone|telefone|default:"—" }}</td>
+        <td>{{ f.email|default:"—" }}</td>
+        <td><a href="{% url 'core:fornecedor_edit' f.pk %}">Editar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Nenhum fornecedor cadastrado.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

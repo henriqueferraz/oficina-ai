@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="dark">
+<head>
+  {% load static %}
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3dcf8e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Oficina AI">
+  <link rel="manifest" href="{% url 'core:pwa_manifest' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/icon-192.png' %}">
+  <title>{% block title %}Oficina AI{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v={{ asset_version }}">
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  {% block head %}{% endblock %}
+</head>
+<body hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+  {% if user.is_authenticated %}
+  <div class="app-shell">
+    <aside class="sidebar d-none d-lg-flex">
+      <a class="brand" href="{% url 'core:dashboard' %}">
+        {% if oficina_atual and oficina_atual.logo %}
+        <img class="brand-logo" src="{{ oficina_atual.logo.url }}" alt="{{ oficina_atual.nome }}">
+        {% else %}
+        <span class="brand-mark">OA</span>
+        {% endif %}
+        <span class="brand-text">Oficina AI</span>
+      </a>
+      <div class="sidebar-user">
+        <p class="sidebar-username">{{ user.get_username }}{% if papel_label %} · {{ papel_label }}{% endif %}</p>
+        {% if oficina_atual %}
+        <p class="oficina-name">{{ oficina_atual.nome }}</p>
+        {% endif %}
+      </div>
+      <nav class="sidebar-nav flex-grow-1">
+        {% include "layouts/partials/nav_links.html" %}
+      </nav>
+      <form class="logout" method="post" action="{% url 'accounts:logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-secondary w-100">Sair</button>
+      </form>
+    </aside>
+
+    <div class="app-content">
+      <header class="mobile-topbar d-lg-none">
+        <button class="btn btn-outline-secondary btn-menu" type="button"
+                data-bs-toggle="offcanvas" data-bs-target="#menuLateral"
+                aria-controls="menuLateral" aria-label="Abrir menu">
+          <span class="hamburger" aria-hidden="true"></span>
+        </button>
+        <a class="brand brand-compact" href="{% url 'core:dashboard' %}">
+          {% if oficina_atual and oficina_atual.logo %}
+          <img class="brand-logo" src="{{ oficina_atual.logo.url }}" alt="{{ oficina_atual.nome }}">
+          {% else %}
+          <span class="brand-mark">OA</span>
+          {% endif %}
+          <span class="brand-text">Oficina AI</span>
+        </a>
+        <span class="mobile-oficina text-truncate">{{ user.get_username }}{% if oficina_atual %} · {{ oficina_atual.nome }}{% endif %}</span>
+      </header>
+
+      <div class="offcanvas offcanvas-start app-offcanvas" tabindex="-1" id="menuLateral" aria-labelledby="menuLateralLabel">
+        <div class="offcanvas-header">
+          <h2 class="offcanvas-title brand" id="menuLateralLabel">
+            {% if oficina_atual and oficina_atual.logo %}
+            <img class="brand-logo" src="{{ oficina_atual.logo.url }}" alt="{{ oficina_atual.nome }}">
+            {% else %}
+            <span class="brand-mark">OA</span>
+            {% endif %}
+            <span class="brand-text">Oficina AI</span>
+          </h2>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+        </div>
+        <div class="offcanvas-body d-flex flex-column gap-3">
+          <div class="sidebar-user">
+            <p class="sidebar-username mb-0">{{ user.get_username }}{% if papel_label %} · {{ papel_label }}{% endif %}</p>
+            {% if oficina_atual %}
+            <p class="oficina-name mb-0">{{ oficina_atual.nome }}</p>
+            {% endif %}
+          </div>
+          <nav class="sidebar-nav flex-grow-1">
+            {% include "layouts/partials/nav_links.html" %}
+          </nav>
+          <form class="logout" method="post" action="{% url 'accounts:logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary w-100">Sair</button>
+          </form>
+        </div>
+      </div>
+
+      <main class="main">
+        {% if messages %}
+        <ul class="flash">
+          {% for message in messages %}
+          <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+  <script src="{% static 'js/masks.js' %}?v={{ asset_version }}"></script>
+  <script>
+  (function () {
+    var menu = document.getElementById('menuLateral');
+    if (!menu) return;
+    menu.querySelectorAll('a.nav-link').forEach(function (link) {
+      link.addEventListener('click', function () {
+        var instance = bootstrap.Offcanvas.getInstance(menu);
+        if (instance) instance.hide();
+      });
+    });
+  })();
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('{% url "core:pwa_sw" %}').then(function (reg) {
+      if (reg.update) reg.update();
+    }).catch(function () {});
+  }
+  </script>
+  {% block scripts %}{% endblock %}
+  {% else %}
+  <main class="auth-main">
+    {% block auth %}{% endblock %}
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+  {% block auth_scripts %}{% endblock %}
+  {% endif %}
+  <div class="app-version" aria-label="Versão do sistema">v{{ app_version }}</div>
+</body>
+</html>

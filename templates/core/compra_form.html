@@ -1,0 +1,31 @@
+{% extends "layouts/base.html" %}
+{% block title %}Nova entrada de estoque{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Nova entrada</h1><p>Compra / reposição de peça</p></div>
+</div>
+<form method="post" class="card card-body d-grid gap-3 form-narrow">
+  {% csrf_token %}
+  <label class="form-label">Peça
+    <select class="form-select" name="peca" required>
+      <option value="">Selecione…</option>
+      {% for p in pecas %}
+      <option value="{{ p.pk }}">{{ p.nome }} (estoque: {{ p.estoque }})</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Fornecedor
+    <select class="form-select" name="fornecedor">
+      <option value="">—</option>
+      {% for f in fornecedores %}
+      <option value="{{ f.pk }}">{{ f.nome }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Quantidade<input class="form-control" name="quantidade" type="number" step="0.01" value="1" required></label>
+  <label class="form-label">Custo unitário<input class="form-control" name="custo_unitario" type="number" step="0.01" value="0"></label>
+  <label class="form-label">Data<input class="form-control" name="data" type="date" value="{{ hoje }}"></label>
+  <label class="form-label">Observações<textarea class="form-control" name="observacoes" rows="2"></textarea></label>
+  <button class="btn btn-primary" type="submit">Registrar entrada</button>
+</form>
+{% endblock %}

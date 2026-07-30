@@ -1,0 +1,51 @@
+{% extends "portal/base.html" %}
+{% block title %}OS #{{ ordem.numero }} — {{ oficina.nome }}{% endblock %}
+{% block content %}
+<section class="card card-body">
+  <h2 class="card-title">Ordem de serviço #{{ ordem.numero }}</h2>
+  <p style="color:var(--muted);margin:.5rem 0 1rem">
+    {{ ordem.cliente.nome }}
+    {% if ordem.veiculo %} · {{ ordem.veiculo }}{% endif %}
+  </p>
+  <p><span class="badge">{{ ordem.get_status_display }}</span>
+     <span class="badge">{{ ordem.get_prioridade_display }}</span></p>
+  {% if ordem.diagnostico %}
+  <p style="margin-top:1rem"><strong>Diagnóstico:</strong> {{ ordem.diagnostico }}</p>
+  {% endif %}
+</section>
+
+<section class="card card-body">
+  <h2 class="card-title">Itens — total R$ {{ ordem.total }}</h2>
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Descrição</th><th>Qtd</th><th>Total</th></tr></thead>
+    <tbody>
+    {% for i in itens %}
+      <tr>
+        <td>{{ i.descricao }}</td>
+        <td>{{ i.quantidade }}</td>
+        <td>R$ {{ i.total }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3">Sem itens.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if pix %}
+<section class="card card-body" id="pix-pagamento">
+  <h2 class="card-title">Pagar com Pix</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:1.25rem;align-items:flex-start">
+    <img src="{{ pix.qr_data_uri }}" alt="QR Code Pix" width="160" height="160"
+         style="border-radius:12px;background:#fff;padding:8px">
+    <div style="flex:1;min-width:200px">
+      <p style="margin:0 0 .5rem"><strong>R$ {{ pix.valor }}</strong></p>
+      <p style="margin:0 0 .75rem;color:var(--muted);font-size:.85rem">{{ pix.nome }}</p>
+      <label class="form-label">Pix copia e cola
+        <textarea class="form-control" readonly rows="4" style="font-size:.75rem;word-break:break-all">{{ pix.payload }}</textarea>
+      </label>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

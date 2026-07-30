@@ -1,0 +1,70 @@
+{% extends "layouts/base.html" %}
+{% block title %}Relatórios{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Relatórios operacionais</h1>
+    <p>{{ oficina.nome }} — ticket, peças, conversão e margem</p>
+  </div>
+</div>
+
+<section class="stats">
+  <div class="stat"><div class="label">Ticket médio</div><div class="value">R$ {{ ticket_medio }}</div></div>
+  <div class="stat"><div class="label">Conversão orç.→OS</div><div class="value">{{ conversao.taxa_percentual }}%</div></div>
+  <div class="stat"><div class="label">Orçamentos</div><div class="value">{{ conversao.convertidos }}/{{ conversao.total }}</div></div>
+  <div class="stat"><div class="label">Margem</div><div class="value">{{ margem.margem_percentual }}%</div></div>
+</section>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+  <section class="card card-body">
+    <h2 class="card-title">Margem operacional</h2>
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <tbody>
+        <tr><td>Receitas</td><td>R$ {{ margem.receitas }}</td></tr>
+        <tr><td>Despesas</td><td>R$ {{ margem.despesas }}</td></tr>
+        <tr><td>Custo peças (OS entregues)</td><td>R$ {{ margem.custo_pecas }}</td></tr>
+        <tr><td><strong>Margem</strong></td><td><strong>R$ {{ margem.margem }}</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+  </div>
+  <div class="col-12 col-lg-6">
+  <section class="card card-body">
+    <h2 class="card-title">Conversão orçamento → OS</h2>
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <tbody>
+        <tr><td>Total de orçamentos</td><td>{{ conversao.total }}</td></tr>
+        <tr><td>Aprovados / convertidos</td><td>{{ conversao.aprovados }}</td></tr>
+        <tr><td>Convertidos em OS</td><td>{{ conversao.convertidos }}</td></tr>
+        <tr><td>Taxa de conversão</td><td>{{ conversao.taxa_percentual }}%</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+  </div>
+</div>
+
+<section class="card card-body">
+  <h2 class="card-title">Peças mais usadas</h2>
+  <div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Peça</th><th>Quantidade</th><th>Usos</th></tr></thead>
+    <tbody>
+    {% for p in pecas %}
+      <tr>
+        <td>{{ p.descricao }}</td>
+        <td>{{ p.quantidade }}</td>
+        <td>{{ p.usos }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="3">Sem consumo de peças ainda.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

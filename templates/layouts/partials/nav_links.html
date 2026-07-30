@@ -1,0 +1,41 @@
+<a class="nav-link" href="{% url 'core:dashboard' %}">Painel</a>
+{% if pode_ordens %}
+<a class="nav-link" href="{% url 'ordens:lista' %}">Ordens</a>
+{% endif %}
+{% if pode_orcamentos %}
+<a class="nav-link" href="{% url 'orcamentos:lista' %}">Orçamentos</a>
+{% endif %}
+{% if pode_clientes %}
+<a class="nav-link" href="{% url 'core:clientes' %}">Clientes</a>
+{% endif %}
+{% if pode_veiculos %}
+<a class="nav-link" href="{% url 'core:veiculos' %}">Veículos</a>
+{% endif %}
+{% if pode_catalogo %}
+<a class="nav-link" href="{% url 'core:catalogo' %}">Catálogo</a>
+{% endif %}
+{% if pode_fornecedores %}
+<a class="nav-link" href="{% url 'core:fornecedores' %}">Fornecedores</a>
+{% endif %}
+{% if pode_compras %}
+<a class="nav-link" href="{% url 'core:compras' %}">Compras</a>
+{% endif %}
+{% if pode_financeiro %}
+<a class="nav-link" href="{% url 'financeiro:lista' %}">Financeiro</a>
+{% endif %}
+{% if pode_relatorios %}
+<a class="nav-link" href="{% url 'core:relatorios' %}">Relatórios</a>
+<a class="nav-link" href="{% url 'core:comissoes' %}">Comissões</a>
+{% endif %}
+{% if pode_importar %}
+<a class="nav-link" href="{% url 'core:importar_csv' %}">Importar</a>
+{% endif %}
+{% if pode_agente %}
+<a class="nav-link" href="{% url 'agentes:painel' %}">Agente IA</a>
+{% endif %}
+{% if pode_equipe %}
+<a class="nav-link" href="{% url 'core:equipe' %}">Equipe</a>
+{% endif %}
+{% if pode_configuracoes %}
+<a class="nav-link" href="{% url 'core:configuracoes' %}">Configurações</a>
+{% endif %}

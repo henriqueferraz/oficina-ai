@@ -1,0 +1,29 @@
+{% extends "layouts/base.html" %}
+{% block title %}Agente IA{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Agente IA</h1>
+    <p>Atendente virtual com acesso a OS, clientes e resumo da oficina</p>
+  </div>
+  <form method="post" action="{% url 'agentes:nova' %}">
+    {% csrf_token %}
+    <button class="btn btn-primary" type="submit">Nova conversa</button>
+  </form>
+</div>
+<section class="card card-body">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>Título</th><th>Atualizado</th></tr></thead>
+    <tbody>
+    {% for c in conversas %}
+      <tr>
+        <td><a href="{% url 'agentes:conversa' c.pk %}">{{ c.titulo|default:"Conversa" }}</a></td>
+        <td>{{ c.atualizado_em|date:"d/m/Y H:i" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="2">Nenhuma conversa ainda. Crie uma e pergunte: “quantas OS abertas?”</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

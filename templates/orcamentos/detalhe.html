@@ -1,0 +1,180 @@
+{% extends "layouts/base.html" %}
+{% block title %}Orçamento #{{ orcamento.numero }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Orçamento #{{ orcamento.numero }}</h1>
+    <p>{{ orcamento.cliente.nome }}{% if orcamento.veiculo %} · {{ orcamento.veiculo }}{% endif %}</p>
+  </div>
+  <div class="toolbar">
+    <a class="btn btn-outline-secondary" href="{% url 'orcamentos:pdf' orcamento.pk %}" target="_blank">PDF</a>
+    {% if orcamento.token_publico %}
+    <a class="btn btn-outline-secondary" href="{% url 'portal:orcamento_publico' orcamento.token_publico %}" target="_blank">Link do cliente</a>
+    {% endif %}
+    {% if orcamento.status != 'convertido' %}
+    <form method="post" action="{% url 'orcamentos:converter_os' orcamento.pk %}">
+      {% csrf_token %}
+      <button class="btn btn-primary" type="submit">Converter → OS</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<section class="card card-body">
+  <h2 class="card-title">Status</h2>
+  <form method="post" action="{% url 'orcamentos:atualizar_status' orcamento.pk %}" class="toolbar">
+    {% csrf_token %}
+    <select class="form-select" name="status">
+      {% for value, label in status_choices %}
+      <option value="{{ value }}" {% if orcamento.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-primary" type="submit">Atualizar</button>
+  </form>
+</section>
+
+<section class="card card-body">
+  <h2 class="card-title">Itens — total R$ {{ orcamento.total }}</h2>
+  <div id="orc-itens">{% include "orcamentos/partials/itens.html" %}</div>
+  <form class="item-form"
+        method="post" action="{% url 'orcamentos:adicionar_item' orcamento.pk %}"
+        hx-post="{% url 'orcamentos:adicionar_item' orcamento.pk %}"
+        hx-target="#orc-itens" hx-swap="innerHTML">
+    {% csrf_token %}
+    <label class="form-label">Tipo
+      <select class="form-select" name="tipo" id="orc-tipo">
+        <option value="servico">Serviço</option>
+        <option value="peca">Peça</option>
+      </select>
+    </label>
+    <label class="form-label">Catálogo
+      <select class="form-select" name="servico_id" id="orc-servico">
+        <option value="">Livre / serviço…</option>
+        {% for s in servicos %}
+        <option value="{{ s.pk }}" data-preco="{{ s.preco|stringformat:'.2f' }}" data-nome="{{ s.nome }}">{{ s.nome }} — R$ {{ s.preco }}</option>
+        {% endfor %}
+      </select>
+      <select class="form-select" name="peca_id" id="orc-peca" style="display:none">
+        <option value="">Livre / peça…</option>
+        {% for p in pecas %}
+        <option value="{{ p.pk }}" data-preco="{{ p.preco|stringformat:'.2f' }}" data-nome="{{ p.nome }}">{{ p.nome }} — R$ {{ p.preco }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="form-label">Descrição<input class="form-control" name="descricao" id="orc-desc"></label>
+    <label class="form-label">Qtd<input class="form-control" name="quantidade" type="number" step="0.01" value="1"></label>
+    <label class="form-label">Valor<input class="form-control" name="valor_unitario" id="orc-valor" type="number" step="0.01" value="0"></label>
+    <button class="btn btn-primary" type="submit">Adicionar</button>
+  </form>
+</section>
+
+<section class="card card-body">
+  <h2 class="card-title">Fotos <span class="badge">{{ orcamento.fotos.count }}/{{ max_fotos }}</span></h2>
+  <div style="display:flex;flex-wrap:wrap;gap:1rem;margin-bottom:1rem">
+    {% for foto in orcamento.fotos.all %}
+    <figure style="margin:0;width:140px;position:relative">
+      <a href="{{ foto.imagem.url }}" target="_blank">
+        <img src="{{ foto.imagem.url }}" alt="{{ foto.legenda }}"
+             style="width:140px;height:100px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">
+      </a>
+      {% if foto.legenda %}<figcaption style="font-size:.75rem;color:var(--muted);margin-top:.35rem">{{ foto.legenda }}</figcaption>{% endif %}
+      <form method="post" action="{% url 'orcamentos:foto_delete' orcamento.pk foto.pk %}" style="margin-top:.35rem">
+        {% csrf_token %}
+        <button class="btn btn-sm btn-outline-secondary" type="submit">Remover</button>
+      </form>
+    </figure>
+    {% empty %}
+    <p style="color:var(--muted);margin:0">Nenhuma foto. Envie até {{ max_fotos }} imagens do veículo/dano.</p>
+    {% endfor %}
+  </div>
+  {% if orcamento.fotos_restantes > 0 %}
+  <form method="post" action="{% url 'orcamentos:foto_upload' orcamento.pk %}" enctype="multipart/form-data" class="toolbar">
+    {% csrf_token %}
+    <input class="form-control" type="file" name="imagens" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple required>
+    <input class="form-control" name="legenda" placeholder="Legenda (opcional)" style="max-width:min(220px,100%)">
+    <button class="btn btn-primary" type="submit">Enviar fotos</button>
+  </form>
+  <p style="color:var(--muted);font-size:.85rem;margin:.5rem 0 0">Restam {{ orcamento.fotos_restantes }} foto(s). JPG, PNG ou WebP · salvas em 1280×1280 · até 500&nbsp;KB.</p>
+  {% else %}
+  <p style="color:var(--muted);margin:0">Limite de {{ max_fotos }} fotos atingido. Remova alguma para enviar outra.</p>
+  {% endif %}
+</section>
+
+<section class="card card-body">
+  <h2 class="card-title">Vídeo <span class="badge">1 stream</span></h2>
+  {% if orcamento.video_url %}
+    {% if orcamento.video_embed_url %}
+    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;border:1px solid var(--line);margin-bottom:1rem;max-width:640px">
+      <iframe src="{{ orcamento.video_embed_url }}" title="{{ orcamento.video_titulo|default:'Vídeo do orçamento' }}"
+              style="position:absolute;top:0;left:0;width:100%;height:100%;border:0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen loading="lazy"></iframe>
+    </div>
+    {% else %}
+    <p style="margin:0 0 1rem">
+      <a href="{{ orcamento.video_url }}" target="_blank" rel="noopener">
+        {{ orcamento.video_titulo|default:orcamento.video_url }}
+      </a>
+    </p>
+    {% endif %}
+  {% endif %}
+  <form method="post" action="{% url 'orcamentos:video_salvar' orcamento.pk %}" class="d-grid gap-3 form-narrow" style="max-width:560px">
+    {% csrf_token %}
+    <label class="form-label">URL do vídeo (YouTube, Vimeo ou outro stream)
+      <input class="form-control" type="url" name="video_url" id="video-url-input" value="{{ orcamento.video_url }}" placeholder="https://www.youtube.com/watch?v=…">
+    </label>
+    <label class="form-label">Título (opcional)
+      <input class="form-control" name="video_titulo" value="{{ orcamento.video_titulo }}" placeholder="Ex.: Vídeo da inspeção">
+    </label>
+    <div class="toolbar">
+      <button class="btn btn-primary" type="submit">Salvar vídeo</button>
+      {% if orcamento.video_url %}
+      <button class="btn btn-outline-secondary" type="button" id="btn-remover-video">Remover vídeo</button>
+      {% endif %}
+    </div>
+  </form>
+</section>
+
+<script>
+(function () {
+  const tipo = document.getElementById('orc-tipo');
+  const servico = document.getElementById('orc-servico');
+  const peca = document.getElementById('orc-peca');
+  const desc = document.getElementById('orc-desc');
+  const valor = document.getElementById('orc-valor');
+  function limparCampos() {
+    desc.value = '';
+    valor.value = '0';
+  }
+  function sync() {
+    const isPeca = tipo.value === 'peca';
+    servico.style.display = isPeca ? 'none' : '';
+    peca.style.display = isPeca ? '' : 'none';
+    if (isPeca) servico.value = ''; else peca.value = '';
+    limparCampos();
+  }
+  function fillFrom(sel) {
+    const opt = sel.selectedOptions[0];
+    if (!opt || !opt.value) {
+      limparCampos();
+      return;
+    }
+    desc.value = opt.dataset.nome || opt.textContent.split(' — ')[0].trim();
+    if (opt.dataset.preco) valor.value = opt.dataset.preco.replace(',', '.');
+  }
+  tipo.addEventListener('change', sync);
+  servico.addEventListener('change', () => fillFrom(servico));
+  peca.addEventListener('change', () => fillFrom(peca));
+  sync();
+
+  const btnRemover = document.getElementById('btn-remover-video');
+  if (btnRemover) {
+    btnRemover.addEventListener('click', function () {
+      const input = document.getElementById('video-url-input');
+      input.value = '';
+      input.form.submit();
+    });
+  }
+})();
+</script>
+{% endblock %}

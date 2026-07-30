@@ -1,0 +1,30 @@
+{% extends "layouts/base.html" %}
+{% block title %}Compras{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Compras</h1><p>Entrada de estoque</p></div>
+  <a class="btn btn-primary" href="{% url 'core:compra_create' %}">Nova entrada</a>
+</div>
+<section class="card card-body">
+  <table class="table table-sm align-middle">
+    <thead><tr><th>#</th><th>Data</th><th>Fornecedor</th><th>Itens</th><th>Total</th></tr></thead>
+    <tbody>
+    {% for c in compras %}
+      <tr>
+        <td>{{ c.numero }}</td>
+        <td>{{ c.data|date:"d/m/Y" }}</td>
+        <td>{{ c.fornecedor.nome|default:"—" }}</td>
+        <td>
+          {% for i in c.itens.all %}
+            {{ i.peca.nome }} ({{ i.quantidade }}){% if not forloop.last %}, {% endif %}
+          {% endfor %}
+        </td>
+        <td>R$ {{ c.total }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">Nenhuma compra registrada.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

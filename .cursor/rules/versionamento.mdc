@@ -1,0 +1,51 @@
+---
+description: Versionamento semântico automático (VERSION, pyproject, CHANGELOG)
+alwaysApply: true
+---
+
+# Versionamento automático
+
+O agente **controla e atualiza a versão** ao concluir mudanças no produto. Não pedir confirmação para bump de rotina.
+
+## Fonte de verdade
+
+| Arquivo | Papel |
+|---------|--------|
+| `VERSION` | Versão exibida na UI (`vX.Y.Z`) |
+| `pyproject.toml` → `version` | Pacote / metadata |
+| `CHANGELOG.md` | Histórico Keep a Changelog |
+
+Sempre sincronizar os três via o script (nunca editar só um).
+
+## Quando fazer bump
+
+Ao **terminar** uma tarefa do usuário que altere comportamento, UI, API, dados ou docs relevantes:
+
+1. Escolher o nível Conventional Commits / SemVer:
+   - `feat` / nova capacidade → **minor**
+   - `fix` / ajuste pequeno / UI cosmético → **patch**
+   - breaking change → **major**
+   - Só `chore`/`ci`/`test`/`style` interno sem impacto ao usuário → **não bump**
+2. Rodar o script (na raiz do repo):
+
+```bash
+uv run python scripts/bump_version.py patch --fixed "descrição curta"
+uv run python scripts/bump_version.py minor --added "descrição curta"
+uv run python scripts/bump_version.py major --changed "descrição da quebra"
+```
+
+Várias notas: repetir `--added` / `--fixed` / `--changed`.
+
+3. Confirmar que o badge usará a nova versão (`settings.APP_VERSION` lê `VERSION`).
+
+## Durante a implementação
+
+- Preferir **um bump no final** da tarefa (não a cada micro-edit).
+- Se a tarefa for só exploração/pergunta sem mudança de código → não bump.
+- Commits: só quando o usuário pedir; o bump dos arquivos de versão entra no mesmo commit se houver commit.
+
+## Proibido
+
+- Esquecer de bump após feature/fix entregue
+- Versões manuais desalinhadas entre `VERSION` e `pyproject.toml`
+- Inventar número de versão sem passar pelo script

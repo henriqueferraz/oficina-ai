@@ -1,0 +1,12 @@
+# <tipo>(escopo opcional): descrição curta
+
+# Tipos: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+# Exemplos:
+#   feat(ordens): baixa estoque ao marcar OS como pronta
+#   fix(orcamentos): converte Decimal no POST de itens
+#   docs: atualiza guia de deploy no Cloudflare R2
+#   test(semana2): cobre importação CSV de clientes
+#   ci: adiciona workflow de lint e testes
+#
+# Corpo (opcional): explique o porquê, não só o quê.
+# Rodapé (opcional): Fixes #123

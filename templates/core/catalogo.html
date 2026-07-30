@@ -1,0 +1,57 @@
+{% extends "layouts/base.html" %}
+{% block title %}Catálogo{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Catálogo</h1><p>Serviços e peças</p></div>
+  <div class="toolbar">
+    <a class="btn btn-primary" href="{% url 'core:servico_create' %}">Novo serviço</a>
+    <a class="btn btn-primary" href="{% url 'core:peca_create' %}">Nova peça</a>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+  <section class="card card-body">
+    <h2 class="card-title">Serviços</h2>
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Nome</th><th>Preço</th><th>Tempo</th><th></th></tr></thead>
+      <tbody>
+      {% for s in servicos %}
+        <tr>
+          <td>{{ s.nome }}</td>
+          <td>R$ {{ s.preco }}</td>
+          <td>{{ s.tempo_estimado_min }} min</td>
+          <td><a href="{% url 'core:servico_edit' s.pk %}">Editar</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Nenhum serviço cadastrado.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  </div>
+  <div class="col-12 col-lg-6">
+  <section class="card card-body">
+    <h2 class="card-title">Peças</h2>
+    <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead><tr><th>Nome</th><th>Estoque</th><th>Preço</th><th></th></tr></thead>
+      <tbody>
+      {% for p in pecas %}
+        <tr>
+          <td>{{ p.nome }}{% if p.codigo %} <span class="badge">{{ p.codigo }}</span>{% endif %}</td>
+          <td>{% if p.estoque_baixo %}<span class="badge warn">{{ p.estoque }}</span>{% else %}{{ p.estoque }}{% endif %}</td>
+          <td>R$ {{ p.preco }}</td>
+          <td><a href="{% url 'core:peca_edit' p.pk %}">Editar</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">Nenhuma peça cadastrada.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  </div>
+</div>
+{% endblock %}
