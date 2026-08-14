@@ -62,6 +62,26 @@ flowchart LR
 - Ao alterar modelos, crie migração com `uv run python manage.py makemigrations`
   e valide com `uv run python manage.py migrate`.
 
+### Regra de veículos 0 km, placa e chassi
+
+- Um veículo 0 km pode receber serviços antes de possuir placa de trânsito.
+- Quando não houver placa, o chassi é obrigatório para identificar o veículo;
+  ele é único na fabricação e deve ser tratado como identificador estável.
+- O chassi deve ser normalizado, preservado e validado para não duplicar veículos
+  dentro da oficina. Nunca use uma placa vazia ou provisória como identificador.
+- Depois de atribuída, a placa normalmente permanece a mesma. Alterações só
+  devem ocorrer em uma regularização comprovada, especialmente na transição da
+  placa antiga (3 letras e 4 números) para a placa Mercosul.
+- Aceite os formatos de placa antiga e Mercosul (`ABC1D23`); a placa Mercosul
+  tem 4 letras e 3 números misturados e não deve ser tratada como uma simples
+  troca rotineira de cadastro.
+- Ao criar ou alterar veículos por formulário, agente, WhatsApp, áudio ou
+  imagem, peça confirmação quando houver mudança de placa e mantenha o chassi
+  como referência do mesmo veículo.
+- O modelo atual ainda exige placa e deixa chassi opcional; qualquer mudança
+  para suportar veículos sem placa exige migração, validação, busca por chassi,
+  atualização de formulários/agentes e testes de regressão.
+
 ## Convenções de implementação
 
 - Coloque lógica transacional e reutilizável em serviços; use

@@ -1,1 +1,2 @@
-em veículos no cadastro de veículos, utilizar a sqlite da tabela fipe para preencher o campo marca, modelo e ano, para agilizar o cadastro. [IMPLEMENTADO]
+Pelo wats o cliente podera cadastrar uma os ou um orçamento, isso por comando de voz ou texto.
+sobre os dados do veículo tambem poderão ser cadastrados por voz, texto ou imagem, o mesmo vale para serviços e outros cadastros e no final deverá ser enviado a os ou o orçamento pera o cliente via e-mail ou wats.

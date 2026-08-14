@@ -45,6 +45,24 @@ Papéis (`PapelOficina`) são **configuráveis por oficina** e podem ter qualque
 
 Cada oficina pode customizar os papéis já existentes ou criar novos. O atributo `eh_administrador=True` ignora permissões e concede acesso a tudo.
 
+## Identificação de veículos 0 km
+
+Veículos 0 km podem passar por serviços antes do emplacamento. Nessa situação,
+o chassi é obrigatório e deve ser usado como identificador estável do veículo;
+a placa pode permanecer vazia até o registro de trânsito. O chassi deve ser
+normalizado e não pode duplicar outro veículo dentro da mesma oficina.
+
+Quando o veículo já possui placa, ela normalmente não muda. A exceção mais
+comum é a substituição documentada da placa antiga, com 3 letras e 4 números,
+pela placa Mercosul, no formato misto como `ABC1D23`. O sistema deve aceitar os
+dois formatos, preservar o chassi e exigir confirmação antes de alterar uma
+placa existente. Esse comportamento vale para cadastros manuais e para dados
+extraídos por agente, áudio, WhatsApp ou imagem.
+
+O modelo atual ainda exige placa e deixa chassi opcional. A evolução para
+veículos sem placa deve incluir migração, validação, buscas por chassi e testes
+antes de ser considerada concluída.
+
 ## Apps Django
 
 ```

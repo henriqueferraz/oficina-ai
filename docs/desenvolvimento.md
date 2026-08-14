@@ -112,6 +112,26 @@ Toda tela deve funcionar em mobile, tablet e desktop.
 - Preferir `row`/`col-*`, `table-responsive`, formulários empilhados no mobile
 - Regra permanente do agente: `.cursor/rules/responsividade.mdc`
 
+## Cadastro de veículos 0 km
+
+O sistema deve permitir que um veículo 0 km receba serviços antes do
+emplacamento. Enquanto a placa não existir, informe o chassi, que é o
+identificador único gravado na fábrica e deve ser obrigatório nesse cenário.
+
+Regras de implementação:
+
+- não use placa vazia ou provisória para localizar o veículo;
+- normalize e evite duplicidade de chassi dentro da oficina;
+- aceite placa antiga (3 letras e 4 números) e placa Mercosul, como `ABC1D23`;
+- trate a troca de placa como exceção documentada, não como edição rotineira;
+- preserve o mesmo veículo pelo chassi quando a placa antiga for substituída;
+- aplique a regra em formulários, APIs, agentes, WhatsApp, áudio e imagem;
+- cubra criação sem placa, posterior emplacamento e migração para Mercosul nos testes.
+
+O modelo atual ainda exige placa no formulário e deixa chassi opcional. Não
+implemente a mudança apenas no template: altere modelo, validações, consultas,
+agentes, migração e testes em conjunto.
+
 ## Estrutura de testes
 
 | Arquivo | Fase |
