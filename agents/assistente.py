@@ -444,6 +444,10 @@ def chat(
         papel=MensagemAgente.Papel.USER,
         conteudo=mensagem_usuario,
         metadados=meta,
+        whatsapp_message_id=meta.get("whatsapp_message_id") or None,
+        tipo=(
+            MensagemAgente.Tipo.AUDIO if meta.get("tipo") == "audio" else MensagemAgente.Tipo.TEXTO
+        ),
     )
     if audio is not None:
         msg_user.audio = audio

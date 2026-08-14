@@ -12,7 +12,8 @@ from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from apps.agentes.whatsapp import extrair_mensagens_webhook, processar_mensagem_entrada
+from apps.agentes.tasks import processar_mensagem_whatsapp
+from apps.agentes.whatsapp import extrair_mensagens_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -67,15 +68,15 @@ def whatsapp_webhook(request):
     respostas = []
     for msg in extrair_mensagens_webhook(payload):
         try:
-            resposta = processar_mensagem_entrada(
+            processar_mensagem_whatsapp.delay(
                 telefone=msg["from"],
                 texto=msg.get("text") or "",
                 media_id=msg.get("media_id") or "",
                 mime=msg.get("mime") or "",
                 tipo=msg.get("type") or "text",
+                message_id=msg.get("id") or "",
             )
-            if resposta:
-                respostas.append({"to": msg["from"], "reply": resposta})
+            respostas.append({"to": msg["from"]})
         except Exception:
             logger.exception("Erro processando mensagem WhatsApp %s", msg.get("id"))
 

@@ -70,6 +70,14 @@ class ConversaAgente(TimeStampedModel):
     def contexto_expirado(self) -> bool:
         return bool(self.expira_em and self.expira_em <= timezone.now())
 
+    def preview_valido(self, preview_id: str) -> bool:
+        return bool(
+            self.etapa == self.Etapa.AGUARDANDO_CONFIRMACAO
+            and preview_id
+            and self.contexto_json.get("preview_id") == preview_id
+            and not self.contexto_expirado()
+        )
+
 
 class MensagemAgente(TimeStampedModel):
     class Papel(models.TextChoices):
@@ -109,6 +117,17 @@ class MensagemAgente(TimeStampedModel):
         ordering = ["criado_em"]
         verbose_name = "Mensagem do agente"
         verbose_name_plural = "Mensagens do agente"
+        indexes = [
+            models.Index(fields=["conversa", "criado_em"]),
+            models.Index(fields=["conversa", "status"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(status="erro", erro_processamento__gt="")
+                | ~models.Q(status="erro"),
+                name="mensagem_erro_exige_detalhe",
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.papel}: {self.conteudo[:40]}"

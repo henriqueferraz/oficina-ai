@@ -190,10 +190,12 @@ def processar_mensagem_entrada(
     media_id: str = "",
     mime: str = "",
     tipo: str = "text",
+    message_id: str = "",
 ) -> str | None:
     """Cria/reusa conversa WhatsApp e responde via agente. Retorna resposta ou None."""
     from agents.audio import extensao_para_mime
     from agents.entrada import processar_entrada_usuario
+    from apps.agentes.models import MensagemAgente
 
     oficina, cliente = resolver_oficina_e_cliente(telefone)
     if not oficina:
@@ -201,6 +203,27 @@ def processar_mensagem_entrada(
         return None
 
     conversa, digits = _obter_ou_criar_conversa(telefone=telefone, oficina=oficina, cliente=cliente)
+
+    if message_id and MensagemAgente.objects.filter(whatsapp_message_id=message_id).exists():
+        logger.info("Mensagem WhatsApp duplicada ignorada: %s", message_id)
+        return None
+
+    if conversa.contexto_expirado():
+        conversa.etapa = conversa.Etapa.INICIAL
+        conversa.contexto_json = {}
+        conversa.veiculo = None
+        conversa.orcamento = None
+        conversa.expira_em = None
+        conversa.save(
+            update_fields=[
+                "etapa",
+                "contexto_json",
+                "veiculo",
+                "orcamento",
+                "expira_em",
+                "atualizado_em",
+            ]
+        )
 
     audio_file = None
     mime_n = mime
@@ -220,13 +243,15 @@ def processar_mensagem_entrada(
                 "Recebi seu áudio, mas não consegui baixá-lo agora. "
                 "Pode enviar de novo ou escrever em texto?"
             )
-            from apps.agentes.models import MensagemAgente
-
             MensagemAgente.objects.create(
                 conversa=conversa,
                 papel=MensagemAgente.Papel.USER,
                 conteudo="[Áudio — falha no download]",
                 metadados={"tipo": "audio", "transcricao_ok": False, "media_id": media_id},
+                whatsapp_message_id=message_id or None,
+                tipo=MensagemAgente.Tipo.AUDIO,
+                status=MensagemAgente.StatusProcessamento.ERRO,
+                erro_processamento="Falha ao baixar mídia WhatsApp",
             )
             MensagemAgente.objects.create(
                 conversa=conversa,
@@ -242,7 +267,15 @@ def processar_mensagem_entrada(
         texto=texto,
         audio=audio_file,
         mime=mime_n or None,
-        metadados_extra={"whatsapp_media_id": media_id} if media_id else None,
+        metadados_extra={
+            key: value
+            for key, value in {
+                "whatsapp_media_id": media_id,
+                "whatsapp_message_id": message_id,
+                "tipo": "audio" if tipo == "audio" else "texto",
+            }.items()
+            if value
+        },
     )
     if resposta:
         enviar_whatsapp(telefone=digits, texto=resposta, oficina=oficina)

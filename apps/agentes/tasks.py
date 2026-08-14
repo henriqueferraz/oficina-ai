@@ -11,6 +11,29 @@ from apps.accounts.models import PerfilUsuario
 from apps.core.models import Oficina
 
 
+@shared_task(name="agentes.processar_mensagem_whatsapp")
+def processar_mensagem_whatsapp(
+    *,
+    telefone: str,
+    texto: str = "",
+    media_id: str = "",
+    mime: str = "",
+    tipo: str = "text",
+    message_id: str = "",
+) -> str | None:
+    """Processa uma mensagem WhatsApp fora da requisição do webhook."""
+    from apps.agentes.whatsapp import processar_mensagem_entrada
+
+    return processar_mensagem_entrada(
+        telefone=telefone,
+        texto=texto,
+        media_id=media_id,
+        mime=mime,
+        tipo=tipo,
+        message_id=message_id,
+    )
+
+
 @shared_task(name="agentes.enviar_resumo_diario")
 def enviar_resumo_diario() -> dict:
     """Gera e envia o resumo operacional diário para o dono de cada oficina."""
