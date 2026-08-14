@@ -62,7 +62,13 @@ E-mail do resumo: com `DEBUG=True` usa backend console (`EMAIL_BACKEND`). Em pro
 
 A versão exibida na UI (`vX.Y.Z`) vem do arquivo `VERSION` (sincronizado com `pyproject.toml` e `CHANGELOG.md`).
 
-Ao entregar feat/fix, use o script — não edite os três arquivos à mão:
+Em pushes para `main`, o CI/CD determina o bump a partir do Conventional Commit,
+executa o script, atualiza os três arquivos, cria a tag e publica a release. A
+automação usa `major` para breaking changes, `minor` para `feat` e `patch` para
+os demais tipos de mudança.
+
+O script continua disponível apenas para preparar uma versão local ou uma
+correção manual excepcional; não edite os três arquivos à mão:
 
 ```bash
 uv run python scripts/bump_version.py minor --added "descrição da feature"

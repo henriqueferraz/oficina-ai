@@ -7,11 +7,12 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout
@@ -42,3 +43,85 @@ jobs:
 
       - name: Ruff format check
         run: uv run ruff format --check .
+
+  release:
+    needs: quality
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: latest
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Determine bump level
+        id: bump
+        shell: bash
+        run: |
+          COMMIT_MSG="$(git log -1 --pretty=%B)"
+          echo "commit_message<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$COMMIT_MSG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          if echo "$COMMIT_MSG" | grep -Eq '(^|[[:space:]])BREAKING CHANGE|!:'; then
+            echo "level=major" >> "$GITHUB_OUTPUT"
+          elif echo "$COMMIT_MSG" | grep -Eq '(^|[[:space:]])feat(\(.+\))?:'; then
+            echo "level=minor" >> "$GITHUB_OUTPUT"
+          else
+            echo "level=patch" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip automated release commit
+        id: skip_release
+        shell: bash
+        run: |
+          if [[ "$(git log -1 --pretty=%s)" == "chore(release):"* ]]; then
+            echo "Automated release commit detected; skipping duplicate bump."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump version
+        if: steps.skip_release.outputs.skip != 'true'
+        shell: bash
+        run: |
+          LEVEL="${{ steps.bump.outputs.level }}"
+          COMMIT_MSG="$(git log -1 --pretty=%B)"
+          uv run python scripts/bump_version.py "$LEVEL" --changed "$COMMIT_MSG"
+          echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+
+      - name: Commit and tag release
+        if: steps.skip_release.outputs.skip != 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add VERSION pyproject.toml CHANGELOG.md
+          git commit -m "chore(release): v${VERSION}" || echo "No release changes to commit"
+
+          git tag -a "v${VERSION}" -m "Release v${VERSION}" || echo "Tag already exists"
+          git push origin HEAD --follow-tags
+
+      - name: Create GitHub Release
+        if: steps.skip_release.outputs.skip != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          generate_release_notes: true

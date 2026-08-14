@@ -46,6 +46,7 @@ edição; a validação local e remota também fazem parte da tarefa.
 - Texto, áudio e imagem convergem para os mesmos serviços de domínio.
 - Processamento pesado, visão, e-mails e mídias usam Celery quando houver Redis.
 - OpenAI, WhatsApp, R2 e SMTP são opcionais e possuem fallback compreensível.
+- O versionamento deve ser automático via CI/CD: o pipeline deve detectar tipo de mudança, executar o bump semântico, atualizar `VERSION`, `pyproject.toml` e `CHANGELOG.md`, criar tag e gerar release sem edição manual.
 - Consultas, ferramentas, uploads e links públicos preservam o isolamento entre oficinas.
 
 ## Regra de veículos 0 km, placa e chassi
@@ -113,6 +114,97 @@ Regras de transição:
 - Erros de OpenAI, WhatsApp, e-mail, R2 ou Celery devem preservar o registro
   confirmado e informar quais notificações foram concluídas ou falharam.
 
+### Contratos estruturados do MVP
+
+Os contratos abaixo representam dados normalizados e validados no servidor. A
+IA e os canais de entrada apenas podem sugerir seus campos; identificadores de
+oficina, permissões, valores de catálogo e transições de estado são resolvidos
+pelos serviços de domínio.
+
+| Contrato | Campos obrigatórios | Campos opcionais | Regras |
+| --- | --- | --- | --- |
+| `IntencaoConversa` | `tipo`, `confianca`, `canal`, `texto_original` | `mensagem_id`, `idioma` | `tipo` é `solicitar_orcamento`, `informar_dados`, `enviar_midia`, `confirmar`, `cancelar` ou `desconhecida`; baixa confiança não pode iniciar gravação. |
+| `DadosCliente` | `nome` | `telefone`, `documento`, `email`, `cliente_id` | `cliente_id`, quando informado, deve pertencer à oficina; telefone e documento são normalizados antes de buscar ou criar. |
+| `DadosVeiculo` | `marca`, `modelo` e pelo menos um de `placa` ou `chassi` | `veiculo_id`, `ano`, `km`, `cor` | placa usa formato antigo ou Mercosul; sem placa exige chassi válido e normalizado; `veiculo_id` deve pertencer à oficina e ao cliente selecionado. |
+| `ItemOrcamento` | `tipo`, `descricao`, `quantidade` | `servico_id`, `peca_id`, `valor_unitario`, `observacao` | `tipo` é `servico` ou `peca`; IDs e valores vêm do catálogo da oficina; quantidade é positiva e o total é calculado no servidor. |
+| `MidiaEntrada` | `tipo`, `origem` | `mensagem_id`, `arquivo_id`, `url`, `mime_type`, `legenda` | `tipo` é `imagem`, `audio` ou `arquivo`; a mídia é associada à conversa e oficina antes de processamento; conteúdo inválido não cria orçamento. |
+| `ConfirmacaoPreview` | `acao`, `preview_id`, `conversa_id` | `correcao` | `acao` é `confirmar`, `recusar` ou `cancelar`; `preview_id` deve ser o mais recente, não expirado e da mesma conversa e oficina. |
+| `RespostaOperacional` | `status`, `mensagem`, `etapa` | `preview_id`, `dados`, `erros`, `links` | `status` é `preview`, `aguardando_dados`, `concluida` ou `erro`; nunca expõe segredos, IDs de outra oficina ou dados internos desnecessários. |
+
+Formato de referência para a fronteira entre entrada e serviços:
+
+```json
+{
+  "intencao": {
+    "tipo": "solicitar_orcamento",
+    "confianca": 0.94,
+    "canal": "whatsapp",
+    "texto_original": "Preciso de orçamento para meu carro"
+  },
+  "cliente": {"nome": "Ana Silva", "telefone": "5511999999999"},
+  "veiculo": {"marca": "Fiat", "modelo": "Argo", "placa": "ABC1D23"},
+  "itens": [{"tipo": "servico", "descricao": "Avaliação de funilaria", "quantidade": 1}],
+  "midias": [],
+  "confirmacao": null
+}
+```
+
+O objeto de entrada não recebe `oficina_id`, permissões nem totais confiáveis.
+Esses dados são obtidos do contexto autenticado ou da conversa resolvida com
+segurança; o serviço devolve uma `RespostaOperacional` de preview antes de
+qualquer persistência mutável.
+
+### Revisão de arquitetura
+
+Os contratos foram confrontados com a arquitetura e o setup documentados, o
+catálogo de permissões e as implementações atuais. A revisão confirma as
+seguintes decisões de integração:
+
+| Área | Evidência atual | Decisão para as próximas fases |
+| --- | --- | --- |
+| Isolamento | Os modelos operacionais recebem `oficina`, e buscas do agente já filtram por oficina. | Serviços recebem a oficina resolvida do contexto; payloads externos não aceitam `oficina_id`. |
+| Autorização | `user_pode()` e `requer_permissao()` centralizam os papéis configuráveis por oficina. | Ações iniciadas pelo funcionário verificam o código do recurso; cliente do portal só aprova ou recusa seu documento público. |
+| Orçamento | A tool existente cria somente `Orcamento.Status.RASCUNHO`; a conversão para OS é um fluxo separado. | O MVP mantém orçamento em rascunho, preview e confirmação antes de qualquer conversão para OS. |
+| Confirmação | A alteração de status de OS já retorna preview quando `confirmado` não é verdadeiro. | `ConfirmacaoPreview` generaliza esse padrão para cadastro e orçamento, sempre associado à conversa e ao preview mais recente. |
+| Conversa e mídia | `ConversaAgente` já possui oficina, cliente, canal e telefone; `MensagemAgente` possui metadados e áudio. | Etapa, contexto, expiração, `message_id`, tipo e status de processamento ficam para a Fase 1, com migração e restrições de idempotência. |
+| Veículo | `Veiculo` ainda exige placa e não restringe chassi por oficina. | A Fase 2 altera modelo, validações, buscas e migração conjuntamente para permitir 0 km por chassi. |
+| Processamento | Celery é eager no desenvolvimento e assíncrono com Redis em produção. | Webhook registra a entrada e delega áudio, imagem e notificações demoradas a tarefas sem bloquear a resposta. |
+
+Não há conflito entre os contratos da Fase 0 e os fluxos documentados em
+`docs/arquitetura.md` e `docs/desenvolvimento.md`. Os campos ainda inexistentes
+nos modelos foram mantidos como requisitos das fases posteriores, sem criar
+atalhos que enfraqueçam isolamento, autorização ou confirmação.
+
+### Validação de escopo e preparação de testes
+
+Decisões finais do MVP:
+
+- a primeira entrega conversacional cria e envia orçamento em rascunho; não cria
+  OS diretamente;
+- o portal público permanece o destino de aprovação e dos links de documentos;
+- WhatsApp, áudio e imagem são canais de entrada para os mesmos contratos, não
+  caminhos alternativos de persistência;
+- falhas de integrações externas não desfazem registros já confirmados e devem
+  retornar um resultado por canal;
+- nenhuma ação mutável depende apenas da interpretação da IA: ela precisa de
+  autorização, preview e confirmação explícita.
+
+Casos que devem orientar os testes das fases seguintes:
+
+| Fase | Casos mínimos de regressão |
+| --- | --- |
+| 1 — conversa e idempotência | webhook repetido não duplica mensagem ou orçamento; `preview_id` de outra conversa ou oficina é rejeitado; contexto expirado solicita nova identificação. |
+| 2 — cadastro por texto | telefone/documento localizam somente cliente da oficina; veículo é localizado por placa ou chassi; veículo 0 km sem placa exige chassi; troca de placa exige novo preview. |
+| 3 — IA e confirmação | IA não inventa IDs, placa, chassi ou valores; item fora do catálogo vira aviso; confirmação persiste apenas o preview mais recente. |
+| 4 — canais e portal | aprovação pública não concede edição operacional; áudio/imagem inválidos não persistem orçamento; falha de envio preserva link e status do documento. |
+
+Critérios de encerramento da Fase 0 atendidos:
+
+- atores, permissões e operações proibidas foram diferenciados;
+- todo contrato mutável possui contexto de oficina, preview e confirmação;
+- o escopo do MVP está restrito ao orçamento em rascunho, deixando OS direta e
+  mudanças de veículo para suas fases próprias.
+
 Fluxo resumido:
 
 ```mermaid
@@ -175,12 +267,12 @@ ação não concede permissão para criar ou editar dados operacionais.
 ### Calendário da fase 0
 
 | Status | Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | [x] | 1 | Definir atores | Documentar permissões e separar cliente final, funcionário e administrador. |
-| [ ] | 2 | Definir fluxo | Desenhar estados da conversa, preview, confirmação e cancelamento. |
-| [ ] | 3 | Definir contratos | Especificar schemas de intenção, cliente, veículo, itens, mídia e resposta. |
-| [ ] | 4 | Revisar arquitetura | Conferir os contratos com `docs/arquitetura.md`, `docs/desenvolvimento.md` e as permissões existentes. |
-| [ ] | 5 | Validar escopo | Revisar o MVP, registrar decisões e preparar os testes das fases seguintes. |
+| [x] | 2 | Definir fluxo | Desenhar estados da conversa, preview, confirmação e cancelamento. |
+| [x] | 3 | Definir contratos | Especificar schemas de intenção, cliente, veículo, itens, mídia e resposta. |
+| [~] | 4 | Revisar arquitetura | Validado localmente; aguarda commit, push e CI bem-sucedido. |
+| [~] | 5 | Validar escopo | Validado localmente; aguarda commit, push e CI bem-sucedido. |
 
 ## Fase 1 - Estado da conversa e idempotência
 
