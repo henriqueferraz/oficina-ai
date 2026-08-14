@@ -76,7 +76,15 @@ class Semana4ClienteFinalTests(TestCase):
         resp = anon.post(aprovar)
         self.assertEqual(resp.status_code, 302)
         self.orcamento.refresh_from_db()
-        self.assertEqual(self.orcamento.status, Orcamento.Status.APROVADO)
+        self.assertEqual(self.orcamento.status, Orcamento.Status.CONVERTIDO)
+        ordem = OrdemServico.objects.get(orcamento=self.orcamento)
+        self.assertEqual(ordem.oficina, self.oficina)
+        self.assertEqual(ordem.cliente, self.cliente)
+        self.assertEqual(ordem.veiculo, self.veiculo)
+
+        resp = anon.post(aprovar)
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(OrdemServico.objects.filter(orcamento=self.orcamento).count(), 1)
 
     def test_webhook_whatsapp(self):
         """Webhook WhatsApp recebe mensagem e responde via agente."""

@@ -1,9 +1,11 @@
 from django.contrib import messages
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path
 from django.views.decorators.http import require_POST
 
 from apps.orcamentos.models import Orcamento
+from apps.orcamentos.services import converter_orcamento_em_os
 from apps.ordens.models import OrdemServico
 
 app_name = "portal"
@@ -46,6 +48,7 @@ def orcamento_publico(request, token):
 
 
 @require_POST
+@transaction.atomic
 def orcamento_aprovar(request, token):
     orc = get_object_or_404(Orcamento, token_publico=token)
     if orc.status != Orcamento.Status.ENVIADO:
@@ -53,7 +56,8 @@ def orcamento_aprovar(request, token):
         return redirect("portal:orcamento_publico", token=token)
     orc.status = Orcamento.Status.APROVADO
     orc.save(update_fields=["status", "atualizado_em"])
-    messages.success(request, "Orçamento aprovado. Obrigado!")
+    ordem = converter_orcamento_em_os(orc.pk)
+    messages.success(request, f"Orçamento aprovado e convertido na OS #{ordem.numero}. Obrigado!")
     return redirect("portal:orcamento_publico", token=token)
 
 

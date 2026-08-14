@@ -80,9 +80,9 @@ Definir quem pode iniciar cada ação e os contratos internos antes de criar too
 
 - Documentar os atores: cliente final, funcionário da oficina e administrador.
 - Permitir ao cliente solicitar orçamento, informar dados, enviar mídias e aprovar.
-- Permitir ao funcionário revisar dados, criar orçamento e converter para OS.
+- Permitir ao funcionário revisar dados, criar orçamento e operar a OS gerada após aprovação.
 - Não permitir que o cliente final altere diretamente uma OS operacional.
-- Definir que o MVP cria orçamento em rascunho, não OS direta.
+- Definir que o MVP cria orçamento em rascunho e o converte automaticamente em OS após aprovação no portal.
 - Definir permissões para cadastro, orçamento, conversão e envio.
 - Definir estados: `inicial`, `identificando_cliente`, `identificando_veiculo`, `montando_orcamento`, `aguardando_confirmacao`, `processando`, `concluida` e `erro`.
 - Definir schemas estruturados para intenção, cliente, veículo, itens, mídia e confirmação.
@@ -105,10 +105,10 @@ Regras de transição:
 
 - `SIM` só confirma o preview mais recente da própria conversa e oficina.
 - `NÃO` ou `CANCELAR` descarta o rascunho não persistido e retorna a `inicial`.
-- Qualquer alteração de cliente, veículo, placa, chassi, item ou valor invalida o
-  preview anterior e exige novo preview.
-- O cliente pode aprovar ou recusar o orçamento pelo portal; isso não confirma
-  automaticamente a conversão para OS.
+- Qualquer alteração de cliente, veículo, placa, chassi, item ou valor
+  invalida o preview anterior e exige novo preview.
+- O cliente pode aprovar ou recusar o orçamento pelo portal; uma aprovação válida
+  converte automaticamente o orçamento na única OS correspondente, em transação.
 - Timeout, mensagem duplicada ou contexto expirado não devem executar uma ação
   mutável; devem pedir nova confirmação ou reiniciar a conversa.
 - Erros de OpenAI, WhatsApp, e-mail, R2 ou Celery devem preservar o registro
@@ -164,7 +164,7 @@ seguintes decisões de integração:
 | --- | --- | --- |
 | Isolamento | Os modelos operacionais recebem `oficina`, e buscas do agente já filtram por oficina. | Serviços recebem a oficina resolvida do contexto; payloads externos não aceitam `oficina_id`. |
 | Autorização | `user_pode()` e `requer_permissao()` centralizam os papéis configuráveis por oficina. | Ações iniciadas pelo funcionário verificam o código do recurso; cliente do portal só aprova ou recusa seu documento público. |
-| Orçamento | A tool existente cria somente `Orcamento.Status.RASCUNHO`; a conversão para OS é um fluxo separado. | O MVP mantém orçamento em rascunho, preview e confirmação antes de qualquer conversão para OS. |
+| Orçamento | A tool existente cria somente `Orcamento.Status.RASCUNHO`; a conversão já gera itens e checklist padrão. | O MVP mantém orçamento em rascunho, preview e confirmação; a aprovação no portal inicia a conversão automática para OS. |
 | Confirmação | A alteração de status de OS já retorna preview quando `confirmado` não é verdadeiro. | `ConfirmacaoPreview` generaliza esse padrão para cadastro e orçamento, sempre associado à conversa e ao preview mais recente. |
 | Conversa e mídia | `ConversaAgente` já possui oficina, cliente, canal e telefone; `MensagemAgente` possui metadados e áudio. | Etapa, contexto, expiração, `message_id`, tipo e status de processamento ficam para a Fase 1, com migração e restrições de idempotência. |
 | Veículo | `Veiculo` ainda exige placa e não restringe chassi por oficina. | A Fase 2 altera modelo, validações, buscas e migração conjuntamente para permitir 0 km por chassi. |
@@ -179,8 +179,8 @@ atalhos que enfraqueçam isolamento, autorização ou confirmação.
 
 Decisões finais do MVP:
 
-- a primeira entrega conversacional cria e envia orçamento em rascunho; não cria
-  OS diretamente;
+- a primeira entrega conversacional cria e envia orçamento em rascunho; a OS é
+  criada automaticamente somente após aprovação no portal;
 - o portal público permanece o destino de aprovação e dos links de documentos;
 - WhatsApp, áudio e imagem são canais de entrada para os mesmos contratos, não
   caminhos alternativos de persistência;
@@ -196,14 +196,14 @@ Casos que devem orientar os testes das fases seguintes:
 | 1 — conversa e idempotência | webhook repetido não duplica mensagem ou orçamento; `preview_id` de outra conversa ou oficina é rejeitado; contexto expirado solicita nova identificação. |
 | 2 — cadastro por texto | telefone/documento localizam somente cliente da oficina; veículo é localizado por placa ou chassi; veículo 0 km sem placa exige chassi; troca de placa exige novo preview. |
 | 3 — IA e confirmação | IA não inventa IDs, placa, chassi ou valores; item fora do catálogo vira aviso; confirmação persiste apenas o preview mais recente. |
-| 4 — canais e portal | aprovação pública não concede edição operacional; áudio/imagem inválidos não persistem orçamento; falha de envio preserva link e status do documento. |
+| 4 — canais e portal | aprovação pública converte uma única OS sem conceder edição operacional; áudio/imagem inválidos não persistem orçamento; falha de envio preserva link e status do documento. |
 
 Critérios de encerramento da Fase 0 atendidos:
 
 - atores, permissões e operações proibidas foram diferenciados;
 - todo contrato mutável possui contexto de oficina, preview e confirmação;
-- o escopo do MVP está restrito ao orçamento em rascunho, deixando OS direta e
-  mudanças de veículo para suas fases próprias.
+- o escopo do MVP cria orçamento em rascunho e converte automaticamente após
+  aprovação; mudanças de veículo ficam para suas fases próprias.
 
 Fluxo resumido:
 
@@ -227,7 +227,7 @@ stateDiagram-v2
 | Ator | Pode fazer | Não pode fazer |
 | --- | --- | --- |
 | Cliente final | Solicitar orçamento, informar ou confirmar seus dados, enviar texto/áudio/imagem e aprovar ou recusar o orçamento pelo portal. | Criar ou alterar diretamente uma OS, alterar dados de outra pessoa, mudar placa/chassi sem confirmação ou escolher a oficina por texto. |
-| Funcionário da oficina | Localizar e cadastrar clientes e veículos, consultar catálogo, montar orçamento, revisar preview, enviar documento e converter orçamento aprovado em OS conforme seu papel. | Acessar dados de outra oficina, ignorar confirmação ou executar uma operação sem a permissão do seu papel. |
+| Funcionário da oficina | Localizar e cadastrar clientes e veículos, consultar catálogo, montar orçamento, revisar preview, enviar documento e operar a OS criada após a aprovação. | Acessar dados de outra oficina, ignorar confirmação ou executar uma operação sem a permissão do seu papel. |
 | Administrador da oficina | Todas as operações do funcionário, além de gerenciar equipe, papéis, configurações e integrações da oficina. | Compartilhar dados entre oficinas ou ignorar validações de domínio, auditoria e confirmação. |
 
 As operações do funcionário devem usar os códigos existentes em
@@ -247,8 +247,9 @@ ao isolamento da oficina e ao registro do resultado por canal.
 
 Para o WhatsApp, a oficina é resolvida pelo contexto autenticado ou pela
 associação segura da conversa; nunca pelo `oficina_id` informado na mensagem.
-O cliente final pode aprovar ou recusar pelo token público do portal, mas essa
-ação não concede permissão para criar ou editar dados operacionais.
+O cliente final pode aprovar ou recusar pelo token público do portal. A aprovação
+converte automaticamente o orçamento em uma única OS, mas não concede permissão
+para criar ou editar outros dados operacionais.
 
 ### Arquivos prováveis
 
@@ -271,7 +272,7 @@ ação não concede permissão para criar ou editar dados operacionais.
 | [x] | 1 | Definir atores | Documentar permissões e separar cliente final, funcionário e administrador. |
 | [x] | 2 | Definir fluxo | Desenhar estados da conversa, preview, confirmação e cancelamento. |
 | [x] | 3 | Definir contratos | Especificar schemas de intenção, cliente, veículo, itens, mídia e resposta. |
-| [~] | 4 | Revisar arquitetura | Validado localmente; aguarda commit, push e CI bem-sucedido. |
+| [x] | 4 | Revisar arquitetura | Contratos conferidos, commit `3e12a6b` aprovado no CI e release `v0.6.1` publicada. |
 | [~] | 5 | Validar escopo | Validado localmente; aguarda commit, push e CI bem-sucedido. |
 
 ## Fase 1 - Estado da conversa e idempotência
@@ -528,8 +529,8 @@ Concluir o ciclo do orçamento aprovado sem ignorar as regras operacionais e fin
 ### Alterações de fluxo
 
 - Cliente aprova pelo portal.
-- Funcionário autorizado revisa e confirma conversão.
-- Converter orçamento aprovado em OS dentro de transação.
+- A aprovação válida converte automaticamente o orçamento em uma única OS dentro de transação.
+- Funcionário autorizado opera a OS criada, sem repetir a conversão.
 - Preservar cliente, veículo, chassi, placa, itens, diagnóstico e fotos.
 - Criar checklist padrão.
 - Manter estados atuais da OS.
@@ -539,13 +540,14 @@ Concluir o ciclo do orçamento aprovado sem ignorar as regras operacionais e fin
 
 ### Tools possíveis
 
-- `converter_orcamento_em_os`, com permissão e confirmação;
+- `consultar_os_do_orcamento`, para localizar a OS criada pela aprovação;
 - `atualizar_checklist`, validando vínculo à OS;
 - `encerrar_ordem`, com confirmação e regras de pagamento e estoque.
 
 ### Testes e aceite da fase 6
 
 - Orçamento não aprovado não converte.
+- Aprovação válida pelo portal converte automaticamente em uma única OS.
 - Conversão cria uma única OS.
 - Conversão duplicada retorna registro existente ou erro controlado.
 - Chassi e placa são preservados.
@@ -558,12 +560,12 @@ Concluir o ciclo do orçamento aprovado sem ignorar as regras operacionais e fin
 
 | Status | Dia | Modificação | O que deve ser feito |
 | --- | --- | --- | --- |
-| [ ] | 1 | Aprovação | Validar estados do portal e restringir conversão a orçamento aprovado. |
-| [ ] | 2 | Conversão | Implementar conversão transacional, preservando cliente, veículo, chassi e itens. |
+| [ ] | 1 | Aprovação | Validar estados do portal e disparar conversão automática somente para orçamento aprovado. |
+| [ ] | 2 | Conversão | Implementar conversão transacional e idempotente, preservando cliente, veículo, chassi e itens. |
 | [ ] | 3 | Checklist | Criar checklist padrão e permitir alterações somente com permissão adequada. |
 | [ ] | 4 | Estoque e financeiro | Conferir baixa de estoque, pagamento, Pix e efeitos na entrega. |
 | [ ] | 5 | Recibo e envio | Reutilizar PDF, notificações e links sem duplicar comunicações. |
-| [ ] | 6 | Tools da OS | Adicionar conversão, checklist e encerramento com preview e confirmação. |
+| [ ] | 6 | Tools da OS | Adicionar consulta da OS gerada, checklist e encerramento com preview e confirmação. |
 | [ ] | 7 | Testes | Cobrir aprovação, conversão duplicada, isolamento, estoque, recibo e Pix. |
 
 ## Fase 7 - Segurança, observabilidade e operação

@@ -226,7 +226,12 @@ class Semana2OsOrcamentoTests(TestCase):
         self.assertTrue(item.ok)
 
     def test_converter_orcamento_em_os(self):
-        orc = criar_orcamento(self.oficina, self.cliente, self.veiculo)
+        orc = criar_orcamento(
+            self.oficina,
+            self.cliente,
+            self.veiculo,
+            status=Orcamento.Status.APROVADO,
+        )
         OrcamentoItem.objects.create(
             orcamento=orc,
             tipo="servico",

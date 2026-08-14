@@ -19,7 +19,7 @@
 ## Portal do cliente
 
 - OS: `/p/os/<token>/` (`token_publico` gerado no save) com Pix QR quando a oficina tem chave.
-- Orçamento: `/p/orcamento/<token>/` com aprovar/recusar quando status=`enviado`.
+- Orçamento: `/p/orcamento/<token>/` com aprovar/recusar quando status=`enviado`; a aprovação cria automaticamente a OS correspondente.
 - Notificação pronta/entregue: e-mail + WhatsApp (dry-run) via `notificar_status_ordem`.
 
 ## Multi-tenant e papéis
@@ -29,6 +29,7 @@ Cada usuário autenticado tem `PerfilUsuario` ligado a uma `Oficina`. Queries fi
 Papéis (`PapelOficina`) são **configuráveis por oficina** e podem ter qualquer combinação de permissões:
 
 **Permissões disponíveis (17 totais):**
+
 - Operação: ordens, orçamentos, clientes, veículos, catálogo, fornecedores, compras
 - Administrativo: financeiro, relatórios, importar CSV, agente IA, equipe, configurações
 - Painel: caixa, ordens recentes, estoque baixo
@@ -37,7 +38,7 @@ Papéis (`PapelOficina`) são **configuráveis por oficina** e podem ter qualque
 **Papéis padrão (ao criar oficina):**
 
 | Papel | Administrador | Permissões típicas |
-|-------|---------------|-------------------|
+| ------- | --------------- | ------------------- |
 | `dono` | Sim | Todas (17/17) |
 | `recepcao` | Não | Operação + importar + painel |
 | `mecanico` | Não | Ordens + clientes + comissão |
@@ -65,7 +66,7 @@ antes de ser considerada concluída.
 
 ## Apps Django
 
-```
+```text
 apps/
   accounts/     # login, cadastro, PerfilUsuario, papéis
   core/         # oficina, clientes, veículos, catálogo, fornecedores, compras, CSV, seed, relatórios, PWA
@@ -76,6 +77,7 @@ apps/
   portal/       # páginas públicas (OS / orçamento)
 agents/         # lógica LLM + tools (fora do app Django)
 tests/          # suíte por fase do roadmap
+
 ```
 
 ## Fluxos principais
@@ -83,7 +85,7 @@ tests/          # suíte por fase do roadmap
 ```mermaid
 flowchart LR
   Cliente --> Orcamento
-  Orcamento -->|converter| OS
+  Orcamento -->|aprovação no portal| OS
   OS -->|pronta/entregue| Estoque
   OS --> Financeiro
   OS --> PixQR
@@ -93,7 +95,7 @@ flowchart LR
 ```
 
 1. **Orçamento** — itens do catálogo, até 10 fotos (R2), 1 vídeo (YouTube/Vimeo/URL).
-2. **Conversão** — orçamento → OS com itens e checklist padrão.
+2. **Conversão** — aprovação do orçamento no portal → OS com itens e checklist padrão, em transação e sem duplicidade.
 3. **Estoque** — compras entram; peças vinculadas à OS saem ao status pronta/entregue.
 4. **Financeiro** — lançamentos com vínculo opcional à OS; Pix QR na OS/portal.
 5. **Relatórios** — ticket médio, peças mais usadas, conversão orçamento→OS, margem e comissões.

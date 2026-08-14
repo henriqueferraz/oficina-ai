@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.core.exceptions import ValidationError
 from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import path
@@ -10,9 +10,9 @@ from apps.accounts.permissions import requer_permissao
 from apps.core.imagens import processar_foto_upload
 from apps.core.pdf import gerar_pdf_orcamento
 from apps.core.views import get_oficina
-from apps.ordens.models import CHECKLIST_PADRAO, ChecklistItem, OrdemItem, OrdemServico
 
 from .models import MAX_FOTOS_ORCAMENTO, Orcamento, OrcamentoFoto, OrcamentoItem
+from .services import converter_orcamento_em_os
 
 app_name = "orcamentos"
 
@@ -218,53 +218,14 @@ def video_salvar(request, pk):
 @login_required
 @requer_permissao("orcamentos")
 @require_POST
-@transaction.atomic
 def converter_os(request, pk):
     oficina = get_oficina(request)
-    orc = get_object_or_404(
-        Orcamento.objects.prefetch_related("itens"),
-        pk=pk,
-        oficina=oficina,
-    )
-    if orc.status == Orcamento.Status.CONVERTIDO:
-        existente = orc.ordens.first()
-        if existente:
-            messages.info(request, "Este orçamento já foi convertido.")
-            return redirect("ordens:detalhe", pk=existente.pk)
-
-    ultimo = OrdemServico.objects.filter(oficina=oficina).aggregate(n=Max("numero"))["n"] or 0
-    ordem = OrdemServico.objects.create(
-        oficina=oficina,
-        cliente=orc.cliente,
-        veiculo=orc.veiculo,
-        orcamento=orc,
-        numero=ultimo + 1,
-        diagnostico=orc.observacoes,
-        desconto=orc.desconto,
-    )
-    OrdemItem.objects.bulk_create(
-        [
-            OrdemItem(
-                ordem=ordem,
-                tipo=item.tipo,
-                descricao=item.descricao,
-                quantidade=item.quantidade,
-                valor_unitario=item.valor_unitario,
-                total=item.total,
-                servico=item.servico,
-                peca=item.peca,
-            )
-            for item in orc.itens.all()
-        ]
-    )
-    ChecklistItem.objects.bulk_create(
-        [
-            ChecklistItem(ordem=ordem, momento=ChecklistItem.Momento.ENTRADA, item=nome)
-            for nome in CHECKLIST_PADRAO
-        ]
-    )
-    orc.status = Orcamento.Status.CONVERTIDO
-    orc.save(update_fields=["status", "atualizado_em"])
+    orc = get_object_or_404(Orcamento, pk=pk, oficina=oficina)
+    try:
+        ordem = converter_orcamento_em_os(orc.pk)
+    except ValidationError as error:
+        messages.error(request, error.messages[0])
+        return redirect("orcamentos:detalhe", pk=orc.pk)
     messages.success(request, f"Orçamento convertido na OS #{ordem.numero}.")
     return redirect("ordens:detalhe", pk=ordem.pk)
 
