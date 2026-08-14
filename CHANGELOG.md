@@ -8,6 +8,12 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-08-14
+
+### Changed
+
+- feat(agentes): registrar estado das mensagens
+
 ## [0.8.0] — 2026-08-14
 
 ### Changed
