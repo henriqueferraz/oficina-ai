@@ -78,12 +78,32 @@ class MensagemAgente(TimeStampedModel):
         SYSTEM = "system", "Sistema"
         TOOL = "tool", "Ferramenta"
 
+    class Tipo(models.TextChoices):
+        TEXTO = "texto", "Texto"
+        AUDIO = "audio", "Áudio"
+        IMAGEM = "imagem", "Imagem"
+        ARQUIVO = "arquivo", "Arquivo"
+
+    class StatusProcessamento(models.TextChoices):
+        RECEBIDA = "recebida", "Recebida"
+        PROCESSANDO = "processando", "Processando"
+        PROCESSADA = "processada", "Processada"
+        ERRO = "erro", "Erro"
+
     conversa = models.ForeignKey(ConversaAgente, on_delete=models.CASCADE, related_name="mensagens")
     papel = models.CharField(max_length=20, choices=Papel.choices)
     conteudo = models.TextField()
     tool_name = models.CharField(max_length=80, blank=True)
     metadados = models.JSONField(default=dict, blank=True)
     audio = models.FileField(upload_to="agentes/audio/%Y/%m/", blank=True, null=True)
+    whatsapp_message_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.TEXTO)
+    status = models.CharField(
+        max_length=20,
+        choices=StatusProcessamento.choices,
+        default=StatusProcessamento.PROCESSADA,
+    )
+    erro_processamento = models.TextField(blank=True)
 
     class Meta:
         ordering = ["criado_em"]
