@@ -1,0 +1,4 @@
+<option value="">Selecione o modelo…</option>
+{% for m in modelos %}
+<option value="{{ m.nome }}" data-id="{{ m.id }}">{{ m.nome }}</option>
+{% endfor %}

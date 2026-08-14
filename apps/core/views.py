@@ -14,6 +14,14 @@ from apps.financeiro.models import Lancamento
 from apps.orcamentos.models import Orcamento
 from apps.ordens.models import OrdemItem, OrdemServico
 
+from .fipe import (
+    encontrar_marca_por_nome,
+    encontrar_modelo_por_nome,
+    fipe_disponivel,
+    listar_anos,
+    listar_marcas,
+    listar_modelos,
+)
 from .models import Cliente, Compra, Fornecedor, Peca, Servico, Veiculo
 from .relatorios import (
     comissoes_por_mecanico,
@@ -276,6 +284,29 @@ def cliente_create(request):
 # ── Veículos ──────────────────────────────────────────────────────────────────
 
 
+def _contexto_veiculo_form(*, clientes, veiculo=None):
+    marcas = list(listar_marcas()) if fipe_disponivel() else []
+    marca_sel = None
+    modelos: list = []
+    anos: list = []
+    if veiculo and veiculo.marca:
+        marca_sel = encontrar_marca_por_nome(veiculo.marca)
+        if marca_sel:
+            modelos = listar_modelos(marca_sel.id)
+            modelo_sel = encontrar_modelo_por_nome(marca_sel.id, veiculo.modelo or "")
+            if modelo_sel:
+                anos = listar_anos(modelo_sel.id)
+    return {
+        "clientes": clientes,
+        "veiculo": veiculo,
+        "fipe_ok": bool(marcas),
+        "fipe_marcas": marcas,
+        "fipe_marca_id": marca_sel.id if marca_sel else "",
+        "fipe_modelos": modelos,
+        "fipe_anos": anos,
+    }
+
+
 @login_required
 @requer_permissao("veiculos")
 def veiculo_list(request):
@@ -316,7 +347,7 @@ def veiculo_create(request):
         )
         messages.success(request, "Veículo cadastrado.")
         return redirect("core:veiculos")
-    return render(request, "core/veiculo_form.html", {"clientes": clientes, "veiculo": None})
+    return render(request, "core/veiculo_form.html", _contexto_veiculo_form(clientes=clientes))
 
 
 @login_required
@@ -342,7 +373,35 @@ def veiculo_edit(request, pk):
         veiculo.save()
         messages.success(request, "Veículo atualizado.")
         return redirect("core:veiculos")
-    return render(request, "core/veiculo_form.html", {"clientes": clientes, "veiculo": veiculo})
+    return render(
+        request,
+        "core/veiculo_form.html",
+        _contexto_veiculo_form(clientes=clientes, veiculo=veiculo),
+    )
+
+
+@login_required
+@requer_permissao("veiculos")
+@require_http_methods(["GET"])
+def fipe_modelos(request):
+    try:
+        marca_id = int(request.GET.get("marca_id") or 0)
+    except (TypeError, ValueError):
+        marca_id = 0
+    modelos = listar_modelos(marca_id) if marca_id else []
+    return render(request, "core/partials/fipe_modelo_options.html", {"modelos": modelos})
+
+
+@login_required
+@requer_permissao("veiculos")
+@require_http_methods(["GET"])
+def fipe_anos(request):
+    try:
+        modelo_id = int(request.GET.get("modelo_id") or 0)
+    except (TypeError, ValueError):
+        modelo_id = 0
+    anos = listar_anos(modelo_id) if modelo_id else []
+    return render(request, "core/partials/fipe_ano_options.html", {"anos": anos})
 
 
 # ── Catálogo / Serviços / Peças ────────────────────────────────────────────────

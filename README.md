@@ -2,8 +2,6 @@
 
 Sistema de gestão para oficinas de funilaria, pintura e mecânica — com agentes de IA.
 
-[![CI](https://github.com/henriqueferraz/oficina-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/henriqueferraz/oficina-ai/actions/workflows/ci.yml)
-
 ## Stack
 
 - Django 6 + HTMX
@@ -63,7 +61,8 @@ uv run ruff format .
 uv run python manage.py test tests
 ```
 
-CI roda lint + testes em todo push/PR. PRs exigem título e commits no padrão Conventional Commits.
+Pull requests exigem título e commits no padrão Conventional Commits. A validação
+local de lint e testes deve ser executada antes de abrir um PR.
 
 ## Neon / R2 / Deploy
 

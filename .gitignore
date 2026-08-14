@@ -44,4 +44,5 @@ node_modules/
 .env.bak.*
 
 # Dados locais
-data/
+data/*
+!data/fipe.db

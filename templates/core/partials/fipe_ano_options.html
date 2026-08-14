@@ -1,0 +1,4 @@
+<option value="">Selecione o ano…</option>
+{% for a in anos %}
+<option value="{{ a.ano|default:'' }}" {% if not a.ano %}disabled{% endif %}>{{ a.descricao }}</option>
+{% endfor %}

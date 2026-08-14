@@ -225,6 +225,10 @@ else:
     MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Base FIPE local (cascata marca → modelo → ano no cadastro de veículo)
+FIPE_DB_PATH = env("FIPE_DB_PATH", default=str(BASE_DIR / "data" / "fipe.db"))
+
 # Limite por upload (fotos do orçamento / OS)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 15 * 1024 * 1024  # 15 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024

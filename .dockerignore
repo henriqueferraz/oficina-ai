@@ -26,7 +26,8 @@ backups
 db.sqlite3
 media/
 staticfiles/
-data/
+data/*
+!data/fipe.db
 
 .idea
 .vscode

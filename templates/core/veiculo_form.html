@@ -4,7 +4,7 @@
 <div class="page-head">
   <div><h1>{% if veiculo %}Editar veículo{% else %}Novo veículo{% endif %}</h1></div>
 </div>
-<form method="post" class="card card-body d-grid gap-3 form-narrow">
+<form method="post" class="card card-body d-grid gap-3 form-narrow" id="veiculo-form">
   {% csrf_token %}
   <label class="form-label">Cliente
     <select class="form-select" name="cliente" required>
@@ -15,9 +15,48 @@
     </select>
   </label>
   <label class="form-label">Placa<input class="form-control" name="placa" required value="{{ veiculo.placa|default:'' }}" style="text-transform:uppercase"></label>
+
+  {% if fipe_ok %}
+  <label class="form-label">Marca
+    <select class="form-select" name="marca" id="fipe-marca" required
+            hx-get="{% url 'core:fipe_modelos' %}"
+            hx-target="#fipe-modelo"
+            hx-trigger="change"
+            hx-vals="js:{marca_id: (document.getElementById('fipe-marca').selectedOptions[0]||{}).dataset?.id || ''}"
+            hx-on::after-request="document.getElementById('fipe-ano').innerHTML='<option value=\'\'>Selecione o ano…</option>'">
+      <option value="">Selecione a marca…</option>
+      {% for m in fipe_marcas %}
+      <option value="{{ m.nome }}" data-id="{{ m.id }}" {% if fipe_marca_id == m.id %}selected{% endif %}>{{ m.nome }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Modelo
+    <select class="form-select" name="modelo" id="fipe-modelo" required
+            hx-get="{% url 'core:fipe_anos' %}"
+            hx-target="#fipe-ano"
+            hx-trigger="change"
+            hx-vals="js:{modelo_id: (document.getElementById('fipe-modelo').selectedOptions[0]||{}).dataset?.id || ''}">
+      <option value="">Selecione o modelo…</option>
+      {% for m in fipe_modelos %}
+      <option value="{{ m.nome }}" data-id="{{ m.id }}" {% if veiculo and veiculo.modelo|upper == m.nome|upper %}selected{% endif %}>{{ m.nome }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="form-label">Ano
+    <select class="form-select" name="ano" id="fipe-ano">
+      <option value="">Selecione o ano…</option>
+      {% for a in fipe_anos %}
+      <option value="{{ a.ano|default:'' }}" {% if veiculo and veiculo.ano and a.ano == veiculo.ano %}selected{% endif %} {% if not a.ano %}disabled{% endif %}>{{ a.descricao }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% else %}
+  <p class="text-warning small mb-0">Base FIPE indisponível — preencha marca, modelo e ano manualmente.</p>
   <label class="form-label">Marca<input class="form-control" name="marca" value="{{ veiculo.marca|default:'' }}"></label>
   <label class="form-label">Modelo<input class="form-control" name="modelo" value="{{ veiculo.modelo|default:'' }}"></label>
   <label class="form-label">Ano<input class="form-control" name="ano" type="number" value="{{ veiculo.ano|default:'' }}"></label>
+  {% endif %}
+
   <label class="form-label">Cor<input class="form-control" name="cor" value="{{ veiculo.cor|default:'' }}"></label>
   <label class="form-label">KM<input class="form-control" name="km" type="number" value="{{ veiculo.km|default:'' }}"></label>
   <label class="form-label">Chassi<input class="form-control" name="chassi" value="{{ veiculo.chassi|default:'' }}"></label>

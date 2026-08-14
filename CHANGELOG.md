@@ -8,6 +8,16 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-30
+
+### Fixed
+
+- migração de vídeo compatível com SQLite nos testes
+
+### Added
+
+- cascata FIPE (marca → modelo → ano) no cadastro de veículo
+
 ## [0.5.1] — 2026-07-30
 
 ### Fixed

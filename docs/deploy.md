@@ -26,6 +26,7 @@ Copie de `.env.example`. Principais:
 | `WHATSAPP_VERIFY_TOKEN` | webhook | Verificação Meta |
 | `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp real | Cloud API |
 | `WHATSAPP_DRY_RUN` | não | `True` = não chama Graph API |
+| `FIPE_DB_PATH` | não | Caminho absoluto da base FIPE (default: `data/fipe.db`) |
 
 ## EasyPanel (VPS)
 
@@ -43,7 +44,8 @@ ALLOWED_HOSTS=hferraz-oficina.mvcrlx.easypanel.host,seu-dominio.com
 CSRF_TRUSTED_ORIGINS=https://hferraz-oficina.mvcrlx.easypanel.host,https://seu-dominio.com
 DATABASE_URL=postgresql://...
 PUBLIC_BASE_URL=https://hferraz-oficina.mvcrlx.easypanel.host
-CELERY_TASK_ALWAYS_EAGER=True
+CELERY_TASK_ALWAYS_EAGER=False
+CELERY_BROKER_URL=redis://redis:6379/0
 ```
 
 Com `ALLOWED_HOSTS` preenchido, o app também deriva `CSRF_TRUSTED_ORIGINS` automaticamente se a var estiver vazia.
@@ -51,7 +53,8 @@ Com `ALLOWED_HOSTS` preenchido, o app também deriva `CSRF_TRUSTED_ORIGINS` auto
 5. Aba **Domains**: domínio + HTTPS (Let’s Encrypt). DNS **A** → IP da VPS.
 6. **Deploy**. O container roda `migrate`, `collectstatic` e Gunicorn.
 
-Opcional no mesmo projeto: serviço **Postgres** (monte o `DATABASE_URL`) e **Redis** + worker Celery se for sair do modo eager.
+Opcional no mesmo projeto: serviço **Postgres** (monte o `DATABASE_URL`) e **Redis**
+com worker e beat Celery para executar o resumo diário fora do processo web.
 
 Fotos: configure R2 (`AWS_*`) ou monte um volume persistente em `/app/media`.
 
@@ -82,7 +85,12 @@ Fotos: configure R2 (`AWS_*`) ou monte um volume persistente em `/app/media`.
 uv sync --no-dev
 uv run python manage.py migrate --noinput
 uv run python manage.py collectstatic --noinput
+uv run python manage.py carregar_fipe  # Carrega base FIPE da API (opcional, primeira vez)
 uv run gunicorn config.wsgi:application --bind 0.0.0.0:$PORT
 ```
 
-Ajuste plataforma (Railway, Render, Fly.io, VPS) conforme o host escolhido. O CI atual valida lint e testes; o deploy em si fica a cargo da plataforma conectada ao `main`.
+Ajuste a plataforma (Railway, Render, Fly.io, VPS) conforme o host escolhido. A
+validação de lint e testes deve ser executada localmente antes do deploy; o deploy
+fica a cargo da plataforma conectada ao `main`.
+
+**Nota:** Se a base FIPE precisar ser atualizada em produção, rode `python manage.py carregar_fipe` e reinicie o serviço. A base é distribuída no repositório (`data/fipe.db`) pré-compilada em modo `DELETE` (não WAL), portanto não requer permissão de escrita para leitura.

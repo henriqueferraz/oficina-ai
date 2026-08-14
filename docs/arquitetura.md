@@ -11,7 +11,7 @@
 ## IA
 
 - OpenAI via tools em `agents/assistente.py` (leitura + criar orçamento + atualizar status OS).
-- Busca NL no painel (`/busca/`) usa o mesmo helper `busca_operacional`; com `LLM_ENABLED` interpreta a frase.
+- Busca NL no painel (`/busca/`) usa internamente o helper `busca_operacional`; com `LLM_ENABLED` interpreta a frase. Esse helper não é uma tool exposta diretamente ao LLM.
 - Resumo diário: Celery Beat (`agentes.enviar_resumo_diario`) e-mail ao dono às 07:00.
 - WhatsApp: webhook em `/agentes/whatsapp/webhook/` → `ConversaAgente` + `chat()` (dry-run sem token Meta).
 - Áudio no painel e no WhatsApp → Whisper (`agents/audio.py`) → `processar_entrada_usuario` (`agents/entrada.py`) → mesmas tools do agente. Arquivo em `MensagemAgente.audio`.
@@ -26,13 +26,24 @@
 
 Cada usuário autenticado tem `PerfilUsuario` ligado a uma `Oficina`. Queries filtram por `oficina` (`get_oficina(request)`).
 
-Papéis (`apps/accounts/permissions.py`):
+Papéis (`PapelOficina`) são **configuráveis por oficina** e podem ter qualquer combinação de permissões:
 
-| Papel | Acesso típico |
-|-------|----------------|
-| `dono` | Tudo + equipe + configurações (Pix, comissão) |
-| `financeiro` | Financeiro, relatórios, comissões |
-| `recepcao` / `mecanico` | Operação (OS, orçamentos, clientes…) |
+**Permissões disponíveis (17 totais):**
+- Operação: ordens, orçamentos, clientes, veículos, catálogo, fornecedores, compras
+- Administrativo: financeiro, relatórios, importar CSV, agente IA, equipe, configurações
+- Painel: caixa, ordens recentes, estoque baixo
+- Comissão: recebe comissão (para mecânicos)
+
+**Papéis padrão (ao criar oficina):**
+
+| Papel | Administrador | Permissões típicas |
+|-------|---------------|-------------------|
+| `dono` | Sim | Todas (17/17) |
+| `recepcao` | Não | Operação + importar + painel |
+| `mecanico` | Não | Ordens + clientes + comissão |
+| `financeiro` | Não | Financeiro + relatórios |
+
+Cada oficina pode customizar os papéis já existentes ou criar novos. O atributo `eh_administrador=True` ignora permissões e concede acesso a tudo.
 
 ## Apps Django
 
@@ -69,20 +80,22 @@ flowchart LR
 4. **Financeiro** — lançamentos com vínculo opcional à OS; Pix QR na OS/portal.
 5. **Relatórios** — ticket médio, peças mais usadas, conversão orçamento→OS, margem e comissões.
 
+## Base FIPE (Catálogo de veículos)
+
+A base de **marcas, modelos e anos** é consultada em tempo real do SQLite local (`data/fipe.db`) distribuído com o código.
+
+- **Leitura:** `apps/core/fipe.py` com `mode=ro&immutable=1` (sem permissão de escrita no diretório).
+- **Carregamento:** `manage.py carregar_fipe` busca da API FIPE pública (idempotente, retomável).
+- **Cache:** Marcas em memória (`@lru_cache`); modelos/anos por requisição.
+- **Fallback:** Se a base falhar, formulário cai para entrada manual em vez de error 500.
+
 ## Storage de mídia
 
 - Sem `AWS_STORAGE_BUCKET_NAME` → `FileSystemStorage` (`media/`).
 - Com bucket + `AWS_S3_ENDPOINT_URL` (R2) → `storages.backends.s3.S3Storage`.
 - Domínio público: `AWS_S3_CUSTOM_DOMAIN` + `AWS_QUERYSTRING_AUTH=False`.
 
-## PWA
-
-- Manifest: `/manifest.webmanifest`
-- Service worker: `/sw.js`
-- Upload de fotos com `capture="environment"` na OS (câmera no celular).
-
-## Testes e CI
+## Testes
 
 - Testes em `tests/test_semana*.py` (SQLite forçado quando `manage.py test`).
-- CI: GitHub Actions (Ruff + Django tests).
 - Commits: Conventional Commits validados em PRs.
