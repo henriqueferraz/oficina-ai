@@ -117,6 +117,10 @@ flowchart LR
   configuração de deploy.
 - Para a base FIPE, use `uv run python manage.py carregar_fipe`; após recarregar,
   reinicie o processo da aplicação.
+- Ao executar o calendário de [melhorias.md](melhorias.md), conclua um dia por
+  vez: marque o dia como `[x]` somente depois de validar seus critérios, faça
+  commit e push das alterações e verifique se o CI terminou com sucesso antes
+  de iniciar o próximo dia. Se o CI falhar, corrija a falha e repita a validação; não avance nem marque o dia seguinte como concluído.
 - Não faça commits, resets ou alterações não relacionadas sem pedido explícito.
 
 ## Antes de concluir

@@ -21,7 +21,7 @@ uv run python manage.py seed_demo   # demo / demo1234
 uv run python manage.py runserver
 ```
 
-App: http://127.0.0.1:8000
+App: <http://127.0.0.1:8000>
 
 Defina `OPENAI_API_KEY` no `.env` para habilitar o agente LLM, a busca NL com interpretação e a transcrição de áudio (Whisper / `OPENAI_TRANSCRIPTION_MODEL`).
 
@@ -44,7 +44,7 @@ E-mail do resumo: com `DEBUG=True` usa backend console (`EMAIL_BACKEND`). Em pro
 ## Comandos úteis
 
 | Comando | Uso |
-|---------|-----|
+| --------- | ----- |
 | `uv run python manage.py runserver` | Servidor local |
 | `uv run python manage.py migrate` | Migrações |
 | `uv run python manage.py seed_demo` | Dados demo |
@@ -97,6 +97,7 @@ uv run python manage.py carregar_fipe --paralelo 6
 Depois de recarregar, **reinicie o processo** da aplicação (há cache em memória das marcas).
 
 **Troubleshooting:**
+
 - Se `listar_marcas()` retorna lista vazia ou erro: base pode estar em modo WAL ou corrompida. Rode `carregar_fipe` de novo.
 - Se templates com seletor de marca/modelo mostram erro: verifique se `FIPE_DB_PATH` está correto no `.env` (default: `data/fipe.db`).
 
@@ -141,7 +142,7 @@ agentes, migração e testes em conjunto.
 ## Estrutura de testes
 
 | Arquivo | Fase |
-|---------|------|
+| --------- | ------ |
 | `tests/test_semana1_fundacao.py` | Auth, modelos, painel |
 | `tests/test_semana2_operacao.py` | CRUD, estoque, PDF, CSV |
 | `tests/test_semana2_midia.py` | Fotos/vídeo orçamento |
