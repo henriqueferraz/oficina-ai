@@ -30,6 +30,8 @@ Ao concluir um dia:
 4. fazer push para a branch de trabalho;
 5. verificar o CI do commit no GitHub Actions;
 6. só iniciar o dia seguinte depois de o CI terminar com sucesso.
+7. ao finalizar cada dia, acrescentar ao final da informação da linha a frase
+  `Commit \`XXXXXXX\` aprovado no CI e release \`vX.X.x\` publicada.`.
 
 Se o CI falhar, o dia permanece pendente até a correção, novo commit/push e nova
 verificação bem-sucedida. Não marcar um dia como concluído apenas por terminar a
@@ -308,11 +310,11 @@ Manter contexto entre mensagens e impedir duplicidade quando a Meta reenviar web
 
 | Status | Dia | Modificação | O que deve ser feito |
 | --- | --- | --- | --- |
-| [x] | 1 | Modelar contexto | Definir etapa, contexto, cliente, veículo, orçamento e expiração da conversa. |
-| [x] | 2 | Registrar mensagens | Adicionar `message_id`, tipo, status e erro de processamento em `MensagemAgente`. |
-| [x] | 3 | Criar migração | Gerar índices e restrições para consulta rápida e idempotência. |
-| [x] | 4 | Ajustar webhook | Validar assinatura, detectar duplicidade e responder sem bloquear tarefas longas. |
-| [x] | 5 | Testar idempotência | Cobrir reenvio, contexto expirado, confirmação fora de contexto e isolamento entre oficinas. |
+| [x] | 1 | Modelar contexto | Definir etapa, contexto, cliente, veículo, orçamento e expiração da conversa. Commit `7d61cda` aprovado no CI e release `v0.8.0` publicada. |
+| [x] | 2 | Registrar mensagens | Adicionar `message_id`, tipo, status e erro de processamento em `MensagemAgente`. Commit `2abc4a9` aprovado no CI e release `v0.9.0` publicada. |
+| [x] | 3 | Criar migração | Gerar índices e restrições para consulta rápida e idempotência. Commit `d5f562a` aprovado no CI e release `v0.10.0` publicada. |
+| [x] | 4 | Ajustar webhook | Validar assinatura, detectar duplicidade e responder sem bloquear tarefas longas. Commit `d5f562a` aprovado no CI e release `v0.10.0` publicada. |
+| [x] | 5 | Testar idempotência | Cobrir reenvio, contexto expirado, confirmação fora de contexto e isolamento entre oficinas. Commit `d5f562a` aprovado no CI e release `v0.10.0` publicada. |
 
 ## Fase 2 - Cadastro e localização por texto
 
