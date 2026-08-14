@@ -8,6 +8,14 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-08-14
+
+### Changed
+
+- feat(docs): atualizar instruções sobre o calendário de melhorias e corrigir formatação de links
+
+chore: atualizar versão do pacote oficina-ai para 0.7.1
+
 ## [0.8.0] — 2026-08-14
 
 ### Changed
