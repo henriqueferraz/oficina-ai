@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 
@@ -15,6 +17,33 @@ from apps.agentes.whatsapp import extrair_mensagens_webhook, processar_mensagem_
 logger = logging.getLogger(__name__)
 
 
+def assinatura_valida(request) -> bool:
+    """Confere o X-Hub-Signature-256 (HMAC-SHA256 do corpo cru com o App Secret).
+
+    O webhook é público e aciona tools que criam orçamento e mudam status de OS,
+    então fora do dry-run a assinatura é obrigatória: sem App Secret configurado
+    a requisição é recusada.
+    """
+    segredo = (getattr(settings, "WHATSAPP_APP_SECRET", "") or "").encode()
+    if not segredo:
+        if getattr(settings, "WHATSAPP_DRY_RUN", True):
+            # Dev/testes: sem credenciais Meta e sem chamadas reais à Graph API
+            return True
+        logger.error("WHATSAPP_APP_SECRET não configurado — webhook recusado.")
+        return False
+
+    recebida = request.headers.get("X-Hub-Signature-256", "")
+    if not recebida.startswith("sha256="):
+        logger.warning("Webhook WhatsApp sem X-Hub-Signature-256.")
+        return False
+
+    esperada = hmac.new(segredo, request.body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(recebida.removeprefix("sha256="), esperada):
+        logger.warning("Webhook WhatsApp com assinatura inválida.")
+        return False
+    return True
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def whatsapp_webhook(request):
@@ -23,9 +52,12 @@ def whatsapp_webhook(request):
         token = request.GET.get("hub.verify_token")
         challenge = request.GET.get("hub.challenge", "")
         verify = getattr(settings, "WHATSAPP_VERIFY_TOKEN", "") or ""
-        if mode == "subscribe" and verify and token == verify:
+        if mode == "subscribe" and verify and hmac.compare_digest(token or "", verify):
             return HttpResponse(challenge, content_type="text/plain")
         return HttpResponseForbidden("Verify token inválido")
+
+    if not assinatura_valida(request):
+        return HttpResponseForbidden("Assinatura inválida")
 
     try:
         payload = json.loads(request.body.decode("utf-8") or "{}")

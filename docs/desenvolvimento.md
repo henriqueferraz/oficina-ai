@@ -48,6 +48,7 @@ E-mail do resumo: com `DEBUG=True` usa backend console (`EMAIL_BACKEND`). Em pro
 | `uv run python manage.py runserver` | Servidor local |
 | `uv run python manage.py migrate` | Migrações |
 | `uv run python manage.py seed_demo` | Dados demo |
+| `uv run python manage.py carregar_fipe` | Recarrega base FIPE (marcas/modelos/anos) e sai do WAL |
 | `uv run python manage.py test tests` | Suíte completa |
 | `uv run python manage.py test tests.test_semana2_operacao` | Uma fase |
 | `uv run python manage.py test tests.test_semana3_ia` | Fase IA |
@@ -67,6 +68,31 @@ Ao entregar feat/fix, use o script — não edite os três arquivos à mão:
 uv run python scripts/bump_version.py minor --added "descrição da feature"
 uv run python scripts/bump_version.py patch --fixed "descrição do fix"
 ```
+
+## Base FIPE (Valores de Referência)
+
+A base de marcas/modelos/anos é distribuída junto do código (`data/fipe.db`) e aberta em modo **somente-leitura** em produção (`mode=ro&immutable=1`) para não depender de permissão de escrita no diretório.
+
+**Para recarregar/atualizar a base da API pública:**
+
+```bash
+# Recarrega TODAS as marcas, modelos e anos
+uv run python manage.py carregar_fipe
+
+# Atualizar só uma marca específica (ex: Fiat)
+uv run python manage.py carregar_fipe --marca Fiat
+
+# Com mais requisições paralelas (default: 4)
+uv run python manage.py carregar_fipe --paralelo 6
+
+# Após rodar, a base sai do modo WAL e é compactada automaticamente
+```
+
+Depois de recarregar, **reinicie o processo** da aplicação (há cache em memória das marcas).
+
+**Troubleshooting:**
+- Se `listar_marcas()` retorna lista vazia ou erro: base pode estar em modo WAL ou corrompida. Rode `carregar_fipe` de novo.
+- Se templates com seletor de marca/modelo mostram erro: verifique se `FIPE_DB_PATH` está correto no `.env` (default: `data/fipe.db`).
 
 ## Template de commit (local)
 
@@ -97,6 +123,7 @@ Toda tela deve funcionar em mobile, tablet e desktop.
 | `tests/test_semana4_cliente.py` | Portal, aprovação, WhatsApp, notificações |
 | `tests/test_semana5_6_diferenciacao.py` | Pix, recibo, financeiro↔OS, relatórios, comissões, papéis, PWA |
 | `tests/test_audio_agentes.py` | Áudio no painel/WhatsApp, transcrição, fallbacks |
+| `tests/test_fipe_veiculo.py` | Integração com base FIPE (marca, modelo, ano) |
 
 ## Branching sugerido
 

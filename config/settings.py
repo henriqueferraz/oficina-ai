@@ -278,6 +278,9 @@ WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
 WHATSAPP_PHONE_NUMBER_ID = env("WHATSAPP_PHONE_NUMBER_ID", default="")
 WHATSAPP_DEFAULT_OFICINA_ID = env("WHATSAPP_DEFAULT_OFICINA_ID", default="")
 WHATSAPP_DRY_RUN = env.bool("WHATSAPP_DRY_RUN", default=True)
+# App Secret do app Meta: valida X-Hub-Signature-256 no webhook. Obrigatório fora
+# do dry-run — o webhook aciona tools que criam orçamento e mudam status de OS.
+WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
 
 # Testes: SQLite em memória + storage local (sem tocar Neon/R2)
 if "test" in sys.argv:

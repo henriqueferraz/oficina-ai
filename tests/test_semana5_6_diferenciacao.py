@@ -467,4 +467,3 @@ class Semana56DiferenciacaoTests(TestCase):
         self.assertNotContains(dash, "Agente IA")
         self.assertEqual(self.client.get(reverse("core:clientes")).status_code, 302)
         self.assertEqual(self.client.get(reverse("agentes:painel")).status_code, 302)
-

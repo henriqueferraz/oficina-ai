@@ -50,9 +50,7 @@ def conversao_orcamento_os(oficina) -> dict:
         convertidos=Count("id", filter=Q(status=Orcamento.Status.CONVERTIDO)),
         aprovados=Count(
             "id",
-            filter=Q(
-                status__in=[Orcamento.Status.APROVADO, Orcamento.Status.CONVERTIDO]
-            ),
+            filter=Q(status__in=[Orcamento.Status.APROVADO, Orcamento.Status.CONVERTIDO]),
         ),
     )
     total = agg["total"] or 0
@@ -89,17 +87,14 @@ def margem_operacional(
             oficina=oficina, tipo=Lancamento.Tipo.DESPESA, pago=True
         ).aggregate(s=Sum("valor"))["s"] or Decimal("0")
 
-    custo_pecas = (
-        OrdemItem.objects.filter(
-            ordem__oficina=oficina,
-            ordem__status=OrdemServico.Status.ENTREGUE,
-            tipo=OrdemItem.Tipo.PECA,
-            peca__isnull=False,
-        ).aggregate(s=Coalesce(DjSum(F("peca__custo") * F("quantidade")), Decimal("0")))[
-            "s"
-        ]
-        or Decimal("0")
-    )
+    custo_pecas = OrdemItem.objects.filter(
+        ordem__oficina=oficina,
+        ordem__status=OrdemServico.Status.ENTREGUE,
+        tipo=OrdemItem.Tipo.PECA,
+        peca__isnull=False,
+    ).aggregate(s=Coalesce(DjSum(F("peca__custo") * F("quantidade")), Decimal("0")))[
+        "s"
+    ] or Decimal("0")
 
     margem = receitas - despesas - custo_pecas
     margem_pct = Decimal("0")
@@ -162,9 +157,7 @@ def comissoes_por_mecanico(oficina) -> list[dict]:
         papel = perfil.papel
         if not papel or papel.eh_administrador:
             continue
-        if not (
-            papel.slug == "mecanico" or "recebe_comissao" in (papel.permissoes or [])
-        ):
+        if not (papel.slug == "mecanico" or "recebe_comissao" in (papel.permissoes or [])):
             continue
         if perfil.user_id not in por_user:
             por_user[perfil.user_id] = {

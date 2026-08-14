@@ -47,7 +47,9 @@ def get_oficina(request):
     from apps.accounts.models import PerfilUsuario
 
     try:
-        perfil = PerfilUsuario.objects.select_related("oficina", "papel").get(user_id=request.user.pk)
+        perfil = PerfilUsuario.objects.select_related("oficina", "papel").get(
+            user_id=request.user.pk
+        )
     except PerfilUsuario.DoesNotExist:
         request._oficina_atual = None
         return None
@@ -77,7 +79,7 @@ def dashboard(request):
     from django.db.models import Case, Count, DecimalField, F, Prefetch, Q, Value, When
     from django.db.models.functions import Coalesce
 
-    from apps.accounts.permissions import get_papel, user_pode
+    from apps.accounts.permissions import user_pode
 
     oficina = get_oficina(request)
     if not oficina:
@@ -649,11 +651,11 @@ def importar_csv(request):
                     continue
                 Cliente.objects.create(
                     oficina=oficina,
-                    nome=nome,
+                    nome=maiusculo(nome),
                     documento=row.get("documento") or row.get("cpf") or row.get("cnpj") or "",
                     telefone=_telefone(row.get("telefone") or row.get("fone") or ""),
                     email=row.get("email") or "",
-                    endereco=row.get("endereco") or row.get("endereço") or "",
+                    endereco=maiusculo(row.get("endereco") or row.get("endereço") or ""),
                 )
                 criados += 1
             elif tipo == "fornecedores":
@@ -662,7 +664,7 @@ def importar_csv(request):
                     continue
                 Fornecedor.objects.create(
                     oficina=oficina,
-                    nome=nome,
+                    nome=maiusculo(nome),
                     documento=row.get("documento") or row.get("cnpj") or "",
                     telefone=_telefone(row.get("telefone") or ""),
                     email=row.get("email") or "",
@@ -674,14 +676,14 @@ def importar_csv(request):
                     continue
                 Peca.objects.create(
                     oficina=oficina,
-                    codigo=row.get("codigo") or row.get("código") or "",
-                    nome=nome,
-                    descricao=row.get("descricao") or row.get("descrição") or "",
+                    codigo=maiusculo(row.get("codigo") or row.get("código") or ""),
+                    nome=maiusculo(nome),
+                    descricao=maiusculo(row.get("descricao") or row.get("descrição") or ""),
                     custo=_dec(row.get("custo")),
                     preco=_dec(row.get("preco") or row.get("preço")),
                     estoque=_dec(row.get("estoque")),
                     estoque_minimo=_dec(row.get("estoque_minimo") or row.get("estoque_mínimo")),
-                    unidade=row.get("unidade") or "UN",
+                    unidade=maiusculo(row.get("unidade") or "UN"),
                 )
                 criados += 1
 
@@ -789,7 +791,10 @@ def configuracoes(request):
 
         if acao == "salvar_papeis":
             for papel in PapelOficina.objects.filter(oficina=oficina):
-                if f"nome_{papel.pk}" not in request.POST and f"perm_{papel.pk}" not in request.POST:
+                if (
+                    f"nome_{papel.pk}" not in request.POST
+                    and f"perm_{papel.pk}" not in request.POST
+                ):
                     continue
                 if papel.eh_administrador:
                     papel.permissoes = list(TODAS_PERMISSOES)
@@ -797,9 +802,7 @@ def configuracoes(request):
                     papel.save(update_fields=["permissoes", "ativo"])
                     continue
                 perms = [
-                    c
-                    for c in request.POST.getlist(f"perm_{papel.pk}")
-                    if c in PERMISSOES_CODIGOS
+                    c for c in request.POST.getlist(f"perm_{papel.pk}") if c in PERMISSOES_CODIGOS
                 ]
                 # Só admin pode ter configurações
                 perms = [c for c in perms if c != "configuracoes"]
@@ -876,7 +879,9 @@ def configuracoes(request):
             messages.success(request, "Configurações da oficina atualizadas.")
             return redirect("core:configuracoes")
 
-    papeis = list(PapelOficina.objects.filter(oficina=oficina).order_by("-eh_administrador", "nome"))
+    papeis = list(
+        PapelOficina.objects.filter(oficina=oficina).order_by("-eh_administrador", "nome")
+    )
     return render(
         request,
         "core/configuracoes.html",
@@ -932,11 +937,7 @@ def equipe(request):
             if not username:
                 messages.error(request, "Informe o nome de usuário.")
                 return redirect("core:equipe")
-            if (
-                User.objects.filter(username__iexact=username)
-                .exclude(pk=perfil.user_id)
-                .exists()
-            ):
+            if User.objects.filter(username__iexact=username).exclude(pk=perfil.user_id).exists():
                 messages.error(request, "Este nome de usuário já está em uso.")
                 return redirect("core:equipe")
 
@@ -947,7 +948,9 @@ def equipe(request):
 
             if is_admin:
                 papel_id = request.POST.get("papel")
-                novo_papel = get_object_or_404(PapelOficina, pk=papel_id, oficina=oficina, ativo=True)
+                novo_papel = get_object_or_404(
+                    PapelOficina, pk=papel_id, oficina=oficina, ativo=True
+                )
                 perfil.papel = novo_papel
                 comissao = request.POST.get("comissao_percentual")
                 if comissao is not None and str(comissao).strip() != "":

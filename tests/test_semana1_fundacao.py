@@ -108,7 +108,8 @@ class Semana1PainelEFluxosTests(TestCase):
             },
         )
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(self.oficina.clientes.filter(nome="Ana").exists())
+        # Cadastros são normalizados para maiúsculas (apps.core.validators.maiusculo)
+        self.assertTrue(self.oficina.clientes.filter(nome="ANA").exists())
 
     def test_criar_ordem_via_ui(self):
         response = self.client.post(

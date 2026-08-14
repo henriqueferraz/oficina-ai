@@ -99,9 +99,7 @@ class AudioAgentesTests(TestCase):
         url = reverse("agentes:conversa", kwargs={"pk": self.conversa.pk})
         resp = self.client.post(url, {"audio": ogg_minimo()}, follow=True)
         self.assertEqual(resp.status_code, 200)
-        msg = MensagemAgente.objects.get(
-            conversa=self.conversa, papel=MensagemAgente.Papel.USER
-        )
+        msg = MensagemAgente.objects.get(conversa=self.conversa, papel=MensagemAgente.Papel.USER)
         self.assertTrue(msg.audio)
         self.assertFalse(msg.metadados.get("transcricao_ok"))
         assistente = MensagemAgente.objects.filter(
@@ -156,18 +154,14 @@ class AudioAgentesTests(TestCase):
             ]
         }
         url = reverse("agentes:whatsapp_webhook")
-        resp = self.client.post(
-            url, data=json.dumps(payload), content_type="application/json"
-        )
+        resp = self.client.post(url, data=json.dumps(payload), content_type="application/json")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["respostas"], 1)
 
         conversa = ConversaAgente.objects.get(
             canal=ConversaAgente.Canal.WHATSAPP, telefone_externo=telefone
         )
-        user_msg = MensagemAgente.objects.get(
-            conversa=conversa, papel=MensagemAgente.Papel.USER
-        )
+        user_msg = MensagemAgente.objects.get(conversa=conversa, papel=MensagemAgente.Papel.USER)
         self.assertEqual(user_msg.conteudo, "Qual o status da OS?")
         self.assertTrue(user_msg.audio)
         self.assertTrue(OUTBOX)
@@ -199,9 +193,7 @@ class AudioAgentesTests(TestCase):
             ]
         }
         url = reverse("agentes:whatsapp_webhook")
-        resp = self.client.post(
-            url, data=json.dumps(payload), content_type="application/json"
-        )
+        resp = self.client.post(url, data=json.dumps(payload), content_type="application/json")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["respostas"], 1)
         conversa = ConversaAgente.objects.get(

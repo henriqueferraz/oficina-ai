@@ -1,14 +1,26 @@
-"""Consulta à base FIPE local (SQLite em data/fipe.db)."""
+"""Consulta à base FIPE local (SQLite em data/fipe.db).
+
+A base é distribuída junto do código e só lida: abrimos com `mode=ro&immutable=1`
+para nunca precisar de escrita no diretório (o modo WAL exigiria criar `-shm`,
+o que falha em container com filesystem read-only ou usuário sem permissão).
+Para recarregar/ampliar a base use `manage.py carregar_fipe`, que também tira o
+arquivo do modo WAL. Depois de recarregar, reinicie o processo (há cache em
+memória das marcas).
+"""
 
 from __future__ import annotations
 
+import logging
 import re
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 _ANO_RE = re.compile(r"^(\d{4})")
 
@@ -51,9 +63,24 @@ def _connect() -> sqlite3.Connection:
     path = fipe_db_path()
     if not path.is_file():
         raise FileNotFoundError(f"Base FIPE não encontrada: {path}")
-    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    # immutable=1: dispensa journal/-shm e funciona em diretório sem permissão de escrita
+    con = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
     con.row_factory = sqlite3.Row
     return con
+
+
+def _consultar(sql: str, params: tuple = ()) -> list[sqlite3.Row]:
+    """Executa a consulta; devolve [] se a base estiver ausente ou ilegível.
+
+    A cascata de marca/modelo/ano é uma conveniência de cadastro: se a base
+    falhar, o formulário cai no preenchimento manual em vez de estourar 500.
+    """
+    try:
+        with closing(_connect()) as con:
+            return con.execute(sql, params).fetchall()
+    except (sqlite3.Error, OSError) as exc:
+        logger.warning("Consulta FIPE indisponível (%s): %s", fipe_db_path(), exc)
+        return []
 
 
 def extrair_ano(descricao: str, codigo: str = "") -> int | None:
@@ -72,35 +99,32 @@ def extrair_ano(descricao: str, codigo: str = "") -> int | None:
 def listar_marcas() -> tuple[FipeMarca, ...]:
     if not fipe_disponivel():
         return ()
-    with _connect() as con:
-        rows = con.execute("SELECT id, nome FROM marcas ORDER BY nome COLLATE NOCASE").fetchall()
+    rows = _consultar("SELECT id, nome FROM marcas ORDER BY nome COLLATE NOCASE")
     return tuple(FipeMarca(id=int(r["id"]), nome=r["nome"]) for r in rows)
 
 
 def listar_modelos(marca_id: int) -> list[FipeModelo]:
     if not fipe_disponivel() or not marca_id:
         return []
-    with _connect() as con:
-        rows = con.execute(
-            "SELECT id, nome, marca_id FROM modelos WHERE marca_id = ? ORDER BY nome COLLATE NOCASE",
-            (marca_id,),
-        ).fetchall()
+    rows = _consultar(
+        "SELECT id, nome, marca_id FROM modelos WHERE marca_id = ? ORDER BY nome COLLATE NOCASE",
+        (marca_id,),
+    )
     return [FipeModelo(id=int(r["id"]), nome=r["nome"], marca_id=int(r["marca_id"])) for r in rows]
 
 
 def listar_anos(modelo_id: int) -> list[FipeAno]:
     if not fipe_disponivel() or not modelo_id:
         return []
-    with _connect() as con:
-        rows = con.execute(
-            """
-            SELECT id, codigo, descricao, modelo_id
-            FROM anos
-            WHERE modelo_id = ?
-            ORDER BY codigo DESC
-            """,
-            (modelo_id,),
-        ).fetchall()
+    rows = _consultar(
+        """
+        SELECT id, codigo, descricao, modelo_id
+        FROM anos
+        WHERE modelo_id = ?
+        ORDER BY codigo DESC
+        """,
+        (modelo_id,),
+    )
     result: list[FipeAno] = []
     for r in rows:
         result.append(

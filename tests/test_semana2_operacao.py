@@ -68,14 +68,15 @@ class Semana2CrudTests(TestCase):
         )
         self.assertEqual(r.status_code, 302)
         v.refresh_from_db()
-        self.assertEqual(v.modelo, "Argo Trekking")
+        # Cadastros são normalizados para maiúsculas (apps.core.validators.maiusculo)
+        self.assertEqual(v.modelo, "ARGO TREKKING")
 
     def test_criar_servico_e_peca(self):
         self.client.post(
             reverse("core:servico_create"),
             {"nome": "Pintura porta", "descricao": "", "preco": "500", "tempo_estimado_min": "120"},
         )
-        self.assertTrue(Servico.objects.filter(oficina=self.oficina, nome="Pintura porta").exists())
+        self.assertTrue(Servico.objects.filter(oficina=self.oficina, nome="PINTURA PORTA").exists())
 
         self.client.post(
             reverse("core:peca_create"),
@@ -91,14 +92,14 @@ class Semana2CrudTests(TestCase):
                 "unidade": "UN",
             },
         )
-        self.assertTrue(Peca.objects.filter(oficina=self.oficina, nome="Retrovisor").exists())
+        self.assertTrue(Peca.objects.filter(oficina=self.oficina, nome="RETROVISOR").exists())
 
     def test_fornecedor_crud(self):
         self.client.post(
             reverse("core:fornecedor_create"),
             {"nome": "Peças Brasil", "documento": "", "telefone": "113333", "email": ""},
         )
-        f = Fornecedor.objects.get(oficina=self.oficina, nome="Peças Brasil")
+        f = Fornecedor.objects.get(oficina=self.oficina, nome="PEÇAS BRASIL")
         self.client.post(
             reverse("core:fornecedor_edit", args=[f.pk]),
             {
@@ -110,7 +111,7 @@ class Semana2CrudTests(TestCase):
             },
         )
         f.refresh_from_db()
-        self.assertEqual(f.nome, "Peças Brasil Ltda")
+        self.assertEqual(f.nome, "PEÇAS BRASIL LTDA")
 
 
 class Semana2EstoqueTests(TestCase):
@@ -277,8 +278,9 @@ class Semana2ImportCsvESeedTests(TestCase):
             {"tipo": "clientes", "arquivo": arquivo},
         )
         self.assertEqual(r.status_code, 302)
-        self.assertEqual(self.oficina.clientes.filter(nome="Joao").count(), 1)
-        self.assertEqual(self.oficina.clientes.filter(nome="Maria").count(), 1)
+        # Cadastros são normalizados para maiúsculas (apps.core.validators.maiusculo)
+        self.assertEqual(self.oficina.clientes.filter(nome="JOAO").count(), 1)
+        self.assertEqual(self.oficina.clientes.filter(nome="MARIA").count(), 1)
 
     def test_seed_demo(self):
         out = StringIO()
