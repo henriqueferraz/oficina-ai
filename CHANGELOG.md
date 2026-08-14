@@ -8,6 +8,12 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-08-14
+
+### Changed
+
+- feat(agentes): concluir fase 1 de conversas
+
 ## [0.9.0] — 2026-08-14
 
 ### Changed
