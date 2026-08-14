@@ -8,6 +8,12 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-08-14
+
+### Changed
+
+- docs(planejamento): registrar commit e release por dia
+
 ## [0.10.0] — 2026-08-14
 
 ### Changed
