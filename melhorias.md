@@ -308,7 +308,7 @@ Manter contexto entre mensagens e impedir duplicidade quando a Meta reenviar web
 
 | Status | Dia | Modificação | O que deve ser feito |
 | --- | --- | --- | --- |
-| [ ] | 1 | Modelar contexto | Definir etapa, contexto, cliente, veículo, orçamento e expiração da conversa. |
+| [x] | 1 | Modelar contexto | Definir etapa, contexto, cliente, veículo, orçamento e expiração da conversa. |
 | [ ] | 2 | Registrar mensagens | Adicionar `message_id`, tipo, status e erro de processamento em `MensagemAgente`. |
 | [ ] | 3 | Criar migração | Gerar índices e restrições para consulta rápida e idempotência. |
 | [ ] | 4 | Ajustar webhook | Validar assinatura, detectar duplicidade e responder sem bloquear tarefas longas. |
