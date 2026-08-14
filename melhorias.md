@@ -107,8 +107,8 @@ Regras de transição:
 - `NÃO` ou `CANCELAR` descarta o rascunho não persistido e retorna a `inicial`.
 - Qualquer alteração de cliente, veículo, placa, chassi, item ou valor
   invalida o preview anterior e exige novo preview.
-- O cliente pode aprovar ou recusar o orçamento pelo portal; uma aprovação válida
-  converte automaticamente o orçamento na única OS correspondente, em transação.
+- O cliente pode aprovar ou recusar o orçamento pelo portal; uma aprovação
+  válida converte automaticamente o orçamento na única OS correspondente, em transação.
 - Timeout, mensagem duplicada ou contexto expirado não devem executar uma ação
   mutável; devem pedir nova confirmação ou reiniciar a conversa.
 - Erros de OpenAI, WhatsApp, e-mail, R2 ou Celery devem preservar o registro
@@ -242,14 +242,11 @@ As operações do funcionário devem usar os códigos existentes em
 - `configuracoes` e `equipe`: administrar papéis, usuários e configurações.
 
 Não há uma permissão separada para envio. O envio deve exigir a permissão do
-recurso de origem (`orcamentos` ou `ordens`) e permanecer sujeito à confirmação,
-ao isolamento da oficina e ao registro do resultado por canal.
+recurso de origem (`orcamentos` ou `ordens`) e permanecer sujeito à confirmação, ao isolamento da oficina e ao registro do resultado por canal.
 
 Para o WhatsApp, a oficina é resolvida pelo contexto autenticado ou pela
 associação segura da conversa; nunca pelo `oficina_id` informado na mensagem.
-O cliente final pode aprovar ou recusar pelo token público do portal. A aprovação
-converte automaticamente o orçamento em uma única OS, mas não concede permissão
-para criar ou editar outros dados operacionais.
+O cliente final pode aprovar ou recusar pelo token público do portal. A aprovação converte automaticamente o orçamento em uma única OS, mas não concede permissão para criar ou editar outros dados operacionais.
 
 ### Arquivos prováveis
 
@@ -273,7 +270,7 @@ para criar ou editar outros dados operacionais.
 | [x] | 2 | Definir fluxo | Desenhar estados da conversa, preview, confirmação e cancelamento. |
 | [x] | 3 | Definir contratos | Especificar schemas de intenção, cliente, veículo, itens, mídia e resposta. |
 | [x] | 4 | Revisar arquitetura | Contratos conferidos, commit `3e12a6b` aprovado no CI e release `v0.6.1` publicada. |
-| [~] | 5 | Validar escopo | Validado localmente; aguarda commit, push e CI bem-sucedido. |
+| [x] | 5 | Validar escopo | Commit `69da9df` aprovado no CI e release `v0.7.0` publicada. |
 
 ## Fase 1 - Estado da conversa e idempotência
 
