@@ -13,6 +13,28 @@ mensagem -> interpretação -> dados extraídos -> preview -> confirmação
 
 A primeira versão deve priorizar orçamento. A criação direta de OS e a análise visual avançada ficam para fases posteriores.
 
+## Regra de execução diária
+
+O planejamento deve ser executado um dia por vez. Cada linha de calendário deve
+ter um status explícito:
+
+- `[ ]` dia ainda não iniciado;
+- `[~]` dia em andamento;
+- `[x]` dia concluído e validado.
+
+Ao concluir um dia:
+
+1. executar os testes e verificações previstos para o dia;
+2. marcar a linha correspondente como `[x]`;
+3. criar um commit seguindo [docs/conventional-commits.md](docs/conventional-commits.md);
+4. fazer push para a branch de trabalho;
+5. verificar o CI do commit no GitHub Actions;
+6. só iniciar o dia seguinte depois de o CI terminar com sucesso.
+
+Se o CI falhar, o dia permanece pendente até a correção, novo commit/push e nova
+verificação bem-sucedida. Não marcar um dia como concluído apenas por terminar a
+edição; a validação local e remota também fazem parte da tarefa.
+
 ## Regras transversais
 
 - Toda operação respeita a oficina resolvida para a conversa; nunca aceitar `oficina_id` enviado pelo usuário.
@@ -65,6 +87,77 @@ Definir quem pode iniciar cada ação e os contratos internos antes de criar too
 - Definir schemas estruturados para intenção, cliente, veículo, itens, mídia e confirmação.
 - Usar o portal como destino principal dos documentos na primeira versão.
 
+### Fluxo de estados do MVP
+
+| Estado | Entrada esperada | Ação do sistema | Próximo estado |
+| --- | --- | --- | --- |
+| `inicial` | Primeira mensagem da conversa | Identificar intenção e canal, sem gravar dados mutáveis. | `identificando_cliente` ou `erro` |
+| `identificando_cliente` | Nome, telefone, documento ou confirmação do cliente | Localizar cliente na oficina; se não existir, montar proposta de cadastro. | `identificando_veiculo` ou `aguardando_confirmacao` |
+| `identificando_veiculo` | Placa, chassi ou dados do veículo | Localizar veículo por placa/chassi ou montar proposta; veículo 0 km sem placa exige chassi. | `montando_orcamento` ou `aguardando_confirmacao` |
+| `montando_orcamento` | Diagnóstico, serviços, peças e mídias | Montar orçamento em rascunho e calcular preview, sem envio definitivo. | `aguardando_confirmacao` |
+| `aguardando_confirmacao` | `SIM`, `NÃO`, `CANCELAR` ou correção dos dados | Confirmar, cancelar ou atualizar o preview; nunca interpretar silêncio como confirmação. | `processando`, `inicial`, `montando_orcamento` ou `erro` |
+| `processando` | Confirmação válida | Persistir em transação, gerar documento e iniciar notificações. | `concluida` ou `erro` |
+| `concluida` | Nova mensagem sobre o resultado | Informar status, link do portal e próximos passos. | `concluida` ou `inicial` |
+| `erro` | Nova tentativa ou correção | Registrar erro técnico sem segredo e oferecer retomada segura. | `inicial` ou estado anterior válido |
+
+Regras de transição:
+
+- `SIM` só confirma o preview mais recente da própria conversa e oficina.
+- `NÃO` ou `CANCELAR` descarta o rascunho não persistido e retorna a `inicial`.
+- Qualquer alteração de cliente, veículo, placa, chassi, item ou valor invalida o
+  preview anterior e exige novo preview.
+- O cliente pode aprovar ou recusar o orçamento pelo portal; isso não confirma
+  automaticamente a conversão para OS.
+- Timeout, mensagem duplicada ou contexto expirado não devem executar uma ação
+  mutável; devem pedir nova confirmação ou reiniciar a conversa.
+- Erros de OpenAI, WhatsApp, e-mail, R2 ou Celery devem preservar o registro
+  confirmado e informar quais notificações foram concluídas ou falharam.
+
+Fluxo resumido:
+
+```mermaid
+stateDiagram-v2
+    [*] --> inicial
+    inicial --> identificando_cliente: intenção de orçamento
+    identificando_cliente --> identificando_veiculo: cliente localizado/confirmado
+    identificando_veiculo --> montando_orcamento: veículo localizado/confirmado
+    montando_orcamento --> aguardando_confirmacao: preview pronto
+    aguardando_confirmacao --> processando: SIM
+    aguardando_confirmacao --> inicial: NÃO ou CANCELAR
+    aguardando_confirmacao --> montando_orcamento: correção de dados
+    processando --> concluida: persistência e processamento aceitos
+    processando --> erro: falha controlada
+    erro --> inicial: nova tentativa
+```
+
+### Contrato de atores e permissões
+
+| Ator | Pode fazer | Não pode fazer |
+| --- | --- | --- |
+| Cliente final | Solicitar orçamento, informar ou confirmar seus dados, enviar texto/áudio/imagem e aprovar ou recusar o orçamento pelo portal. | Criar ou alterar diretamente uma OS, alterar dados de outra pessoa, mudar placa/chassi sem confirmação ou escolher a oficina por texto. |
+| Funcionário da oficina | Localizar e cadastrar clientes e veículos, consultar catálogo, montar orçamento, revisar preview, enviar documento e converter orçamento aprovado em OS conforme seu papel. | Acessar dados de outra oficina, ignorar confirmação ou executar uma operação sem a permissão do seu papel. |
+| Administrador da oficina | Todas as operações do funcionário, além de gerenciar equipe, papéis, configurações e integrações da oficina. | Compartilhar dados entre oficinas ou ignorar validações de domínio, auditoria e confirmação. |
+
+As operações do funcionário devem usar os códigos existentes em
+`apps/accounts/permissions.py`:
+
+- `clientes`: localizar e cadastrar cliente;
+- `veiculos`: localizar e cadastrar veículo, inclusive 0 km por chassi;
+- `catalogo`: consultar ou manter serviços e peças;
+- `orcamentos`: criar, revisar, enviar e aprovar o fluxo de orçamento;
+- `ordens`: consultar, converter e operar uma OS;
+- `agente`: usar o agente de IA e suas ferramentas;
+- `configuracoes` e `equipe`: administrar papéis, usuários e configurações.
+
+Não há uma permissão separada para envio. O envio deve exigir a permissão do
+recurso de origem (`orcamentos` ou `ordens`) e permanecer sujeito à confirmação,
+ao isolamento da oficina e ao registro do resultado por canal.
+
+Para o WhatsApp, a oficina é resolvida pelo contexto autenticado ou pela
+associação segura da conversa; nunca pelo `oficina_id` informado na mensagem.
+O cliente final pode aprovar ou recusar pelo token público do portal, mas essa
+ação não concede permissão para criar ou editar dados operacionais.
+
 ### Arquivos prováveis
 
 - `AGENTS.md`
@@ -81,13 +174,13 @@ Definir quem pode iniciar cada ação e os contratos internos antes de criar too
 
 ### Calendário da fase 0
 
-| Dia | Modificação | O que deve ser feito |
+| Status | Dia | Modificação | O que deve ser feito |
 | --- | --- | --- |
-| 1 | Definir atores | Documentar permissões e separar cliente final, funcionário e administrador. |
-| 2 | Definir fluxo | Desenhar estados da conversa, preview, confirmação e cancelamento. |
-| 3 | Definir contratos | Especificar schemas de intenção, cliente, veículo, itens, mídia e resposta. |
-| 4 | Revisar arquitetura | Conferir os contratos com `docs/arquitetura.md`, `docs/desenvolvimento.md` e as permissões existentes. |
-| 5 | Validar escopo | Revisar o MVP, registrar decisões e preparar os testes das fases seguintes. |
+| [x] | 1 | Definir atores | Documentar permissões e separar cliente final, funcionário e administrador. |
+| [ ] | 2 | Definir fluxo | Desenhar estados da conversa, preview, confirmação e cancelamento. |
+| [ ] | 3 | Definir contratos | Especificar schemas de intenção, cliente, veículo, itens, mídia e resposta. |
+| [ ] | 4 | Revisar arquitetura | Conferir os contratos com `docs/arquitetura.md`, `docs/desenvolvimento.md` e as permissões existentes. |
+| [ ] | 5 | Validar escopo | Revisar o MVP, registrar decisões e preparar os testes das fases seguintes. |
 
 ## Fase 1 - Estado da conversa e idempotência
 
@@ -123,13 +216,13 @@ Manter contexto entre mensagens e impedir duplicidade quando a Meta reenviar web
 
 ### Calendário da fase 1
 
-| Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
-| 1 | Modelar contexto | Definir etapa, contexto, cliente, veículo, orçamento e expiração da conversa. |
-| 2 | Registrar mensagens | Adicionar `message_id`, tipo, status e erro de processamento em `MensagemAgente`. |
-| 3 | Criar migração | Gerar índices e restrições para consulta rápida e idempotência. |
-| 4 | Ajustar webhook | Validar assinatura, detectar duplicidade e responder sem bloquear tarefas longas. |
-| 5 | Testar idempotência | Cobrir reenvio, contexto expirado, confirmação fora de contexto e isolamento entre oficinas. |
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Modelar contexto | Definir etapa, contexto, cliente, veículo, orçamento e expiração da conversa. |
+| [ ] | 2 | Registrar mensagens | Adicionar `message_id`, tipo, status e erro de processamento em `MensagemAgente`. |
+| [ ] | 3 | Criar migração | Gerar índices e restrições para consulta rápida e idempotência. |
+| [ ] | 4 | Ajustar webhook | Validar assinatura, detectar duplicidade e responder sem bloquear tarefas longas. |
+| [ ] | 5 | Testar idempotência | Cobrir reenvio, contexto expirado, confirmação fora de contexto e isolamento entre oficinas. |
 
 ## Fase 2 - Cadastro e localização por texto
 
@@ -192,16 +285,16 @@ Em `agents/assistente.py`:
 
 ### Calendário da fase 2
 
-| Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
-| 1 | Serviço de cliente | Implementar localização por telefone, documento e nome, sempre filtrada por oficina. |
-| 2 | Serviço de veículo | Implementar busca por placa ou chassi e validar o vínculo com o cliente. |
-| 3 | Regra 0 km | Permitir placa ausente somente com chassi válido e impedir duplicidade de chassi. |
-| 4 | Placas | Validar placa antiga e Mercosul, preservando o chassi e exigindo confirmação para alteração. |
-| 5 | Orçamento rascunho | Criar serviços transacionais para itens, preview e confirmação do orçamento. |
-| 6 | Tools da IA | Adicionar tools de busca/proposta sem aceitar IDs ou oficina vindos do usuário. |
-| 7 | Formulários e buscas | Atualizar formulário, listagens, consultas e mensagens para veículo sem placa. |
-| 8 | Testes | Cobrir criação, validações, oficinas distintas, chassi e migração de placa. |
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Serviço de cliente | Implementar localização por telefone, documento e nome, sempre filtrada por oficina. |
+| [ ] | 2 | Serviço de veículo | Implementar busca por placa ou chassi e validar o vínculo com o cliente. |
+| [ ] | 3 | Regra 0 km | Permitir placa ausente somente com chassi válido e impedir duplicidade de chassi. |
+| [ ] | 4 | Placas | Validar placa antiga e Mercosul, preservando o chassi e exigindo confirmação para alteração. |
+| [ ] | 5 | Orçamento rascunho | Criar serviços transacionais para itens, preview e confirmação do orçamento. |
+| [ ] | 6 | Tools da IA | Adicionar tools de busca/proposta sem aceitar IDs ou oficina vindos do usuário. |
+| [ ] | 7 | Formulários e buscas | Atualizar formulário, listagens, consultas e mensagens para veículo sem placa. |
+| [ ] | 8 | Testes | Cobrir criação, validações, oficinas distintas, chassi e migração de placa. |
 
 ## Fase 3 - Áudio no fluxo de orçamento
 
@@ -228,14 +321,14 @@ Reutilizar Whisper para executar o mesmo fluxo da Fase 2 por áudio.
 
 ### Calendário da fase 3
 
-| Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
-| 1 | Entrada de áudio | Revisar MIME, tamanho, download da Meta e armazenamento da mensagem. |
-| 2 | Transcrição | Encaminhar Whisper para o parser de texto sem duplicar regras de negócio. |
-| 3 | Fallbacks | Tratar ausência de chave, erro de transcrição, timeout e resposta ao usuário. |
-| 4 | Tarefas | Configurar Celery, retry limitado e backoff para processamento demorado. |
-| 5 | Segurança | Garantir confirmação para placa, chassi, cadastro e orçamento originados do áudio. |
-| 6 | Testes | Reutilizar os testes de texto e cobrir áudio válido, inválido e repetido. |
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Entrada de áudio | Revisar MIME, tamanho, download da Meta e armazenamento da mensagem. |
+| [ ] | 2 | Transcrição | Encaminhar Whisper para o parser de texto sem duplicar regras de negócio. |
+| [ ] | 3 | Fallbacks | Tratar ausência de chave, erro de transcrição, timeout e resposta ao usuário. |
+| [ ] | 4 | Tarefas | Configurar Celery, retry limitado e backoff para processamento demorado. |
+| [ ] | 5 | Segurança | Garantir confirmação para placa, chassi, cadastro e orçamento originados do áudio. |
+| [ ] | 6 | Testes | Reutilizar os testes de texto e cobrir áudio válido, inválido e repetido. |
 
 ## Fase 4 - Criação e envio de orçamento
 
@@ -280,14 +373,14 @@ Em `apps/agentes/tasks.py`:
 
 ### Calendário da fase 4
 
-| Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
-| 1 | Fechamento do orçamento | Validar dados confirmados, itens, cliente, veículo e status antes de enviar. |
-| 2 | E-mail | Montar mensagem HTML, anexar PDF e tratar ausência de endereço ou falha SMTP. |
-| 3 | WhatsApp | Enviar resumo e link do portal, respeitando dry-run e limite de mensagem. |
-| 4 | Tarefas de envio | Criar retry, backoff, registro por canal e proteção contra envio duplicado. |
-| 5 | Portal | Confirmar aprovação/recusa e notificar a oficina sem desfazer o orçamento. |
-| 6 | Testes | Cobrir sucesso, falha isolada de canal, retry, dry-run e veículo sem placa. |
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Fechamento do orçamento | Validar dados confirmados, itens, cliente, veículo e status antes de enviar. |
+| [ ] | 2 | E-mail | Montar mensagem HTML, anexar PDF e tratar ausência de endereço ou falha SMTP. |
+| [ ] | 3 | WhatsApp | Enviar resumo e link do portal, respeitando dry-run e limite de mensagem. |
+| [ ] | 4 | Tarefas de envio | Criar retry, backoff, registro por canal e proteção contra envio duplicado. |
+| [ ] | 5 | Portal | Confirmar aprovação/recusa e notificar a oficina sem desfazer o orçamento. |
+| [ ] | 6 | Testes | Cobrir sucesso, falha isolada de canal, retry, dry-run e veículo sem placa. |
 
 ## Fase 5 - Entrada de imagens
 
@@ -324,15 +417,15 @@ Aceitar fotos de veículo, placa, documento ou dano pelo WhatsApp e painel, prim
 
 ### Calendário da fase 5
 
-| Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
-| 1 | Recepção de imagem | Aceitar `type=image`, extrair `media_id` e validar assinatura e origem. |
-| 2 | Download e limites | Baixar mídia, validar MIME/tamanho e impedir duplicidade de imagem. |
-| 3 | Normalização | Usar `apps/core/imagens.py` para redimensionar e comprimir antes do storage. |
-| 4 | Persistência | Salvar em R2 ou local e vincular ao orçamento/OS após confirmação. |
-| 5 | Análise visual | Adicionar sugestões opcionais de placa, veículo e dano, sem gravar automaticamente. |
-| 6 | Processamento assíncrono | Mover tarefas demoradas para Celery e responder rapidamente ao webhook. |
-| 7 | Testes | Cobrir formatos, limites, falhas, anexos, sugestões e confirmação. |
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Recepção de imagem | Aceitar `type=image`, extrair `media_id` e validar assinatura e origem. |
+| [ ] | 2 | Download e limites | Baixar mídia, validar MIME/tamanho e impedir duplicidade de imagem. |
+| [ ] | 3 | Normalização | Usar `apps/core/imagens.py` para redimensionar e comprimir antes do storage. |
+| [ ] | 4 | Persistência | Salvar em R2 ou local e vincular ao orçamento/OS após confirmação. |
+| [ ] | 5 | Análise visual | Adicionar sugestões opcionais de placa, veículo e dano, sem gravar automaticamente. |
+| [ ] | 6 | Processamento assíncrono | Mover tarefas demoradas para Celery e responder rapidamente ao webhook. |
+| [ ] | 7 | Testes | Cobrir formatos, limites, falhas, anexos, sugestões e confirmação. |
 
 ## Fase 6 - Aprovação, conversão para OS e entrega
 
@@ -371,15 +464,15 @@ Concluir o ciclo do orçamento aprovado sem ignorar as regras operacionais e fin
 
 ### Calendário da fase 6
 
-| Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
-| 1 | Aprovação | Validar estados do portal e restringir conversão a orçamento aprovado. |
-| 2 | Conversão | Implementar conversão transacional, preservando cliente, veículo, chassi e itens. |
-| 3 | Checklist | Criar checklist padrão e permitir alterações somente com permissão adequada. |
-| 4 | Estoque e financeiro | Conferir baixa de estoque, pagamento, Pix e efeitos na entrega. |
-| 5 | Recibo e envio | Reutilizar PDF, notificações e links sem duplicar comunicações. |
-| 6 | Tools da OS | Adicionar conversão, checklist e encerramento com preview e confirmação. |
-| 7 | Testes | Cobrir aprovação, conversão duplicada, isolamento, estoque, recibo e Pix. |
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Aprovação | Validar estados do portal e restringir conversão a orçamento aprovado. |
+| [ ] | 2 | Conversão | Implementar conversão transacional, preservando cliente, veículo, chassi e itens. |
+| [ ] | 3 | Checklist | Criar checklist padrão e permitir alterações somente com permissão adequada. |
+| [ ] | 4 | Estoque e financeiro | Conferir baixa de estoque, pagamento, Pix e efeitos na entrega. |
+| [ ] | 5 | Recibo e envio | Reutilizar PDF, notificações e links sem duplicar comunicações. |
+| [ ] | 6 | Tools da OS | Adicionar conversão, checklist e encerramento com preview e confirmação. |
+| [ ] | 7 | Testes | Cobrir aprovação, conversão duplicada, isolamento, estoque, recibo e Pix. |
 
 ## Fase 7 - Segurança, observabilidade e operação
 
@@ -411,15 +504,15 @@ Endurecer os fluxos depois que o MVP funcionar com dados reais.
 
 ### Calendário da fase 7
 
-| Dia | Modificação | O que deve ser feito |
-| --- | --- | --- |
-| 1 | Permissões | Auditar cada tool, view e tarefa com `@requer_permissao` ou `user.pode`. |
-| 2 | Isolamento | Testar duas oficinas, links públicos, uploads, buscas e contexto de IA. |
-| 3 | Limites | Configurar rate limiting, limites de mídia, Whisper, visão e mensagens. |
-| 4 | Observabilidade | Criar logs, métricas e alertas sem registrar segredos ou dados desnecessários. |
-| 5 | Retenção | Definir expiração de tokens e retenção de áudio, imagem e dados pessoais. |
-| 6 | Resiliência | Validar retry, fallback, filas, falhas de WhatsApp, e-mail, R2 e Celery. |
-| 7 | Validação final | Executar testes, Ruff, `manage.py check`, revisão de segurança e documentação. |
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Permissões | Auditar cada tool, view e tarefa com `@requer_permissao` ou `user.pode`. |
+| [ ] | 2 | Isolamento | Testar duas oficinas, links públicos, uploads, buscas e contexto de IA. |
+| [ ] | 3 | Limites | Configurar rate limiting, limites de mídia, Whisper, visão e mensagens. |
+| [ ] | 4 | Observabilidade | Criar logs, métricas e alertas sem registrar segredos ou dados desnecessários. |
+| [ ] | 5 | Retenção | Definir expiração de tokens e retenção de áudio, imagem e dados pessoais. |
+| [ ] | 6 | Resiliência | Validar retry, fallback, filas, falhas de WhatsApp, e-mail, R2 e Celery. |
+| [ ] | 7 | Validação final | Executar testes, Ruff, `manage.py check`, revisão de segurança e documentação. |
 
 ## Ordem de execução do MVP
 
