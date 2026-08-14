@@ -1,6 +1,6 @@
 [project]
 name = "oficina-ai"
-version = "0.6.0"
+version = "0.6.1"
 description = "Sistema de gestão para oficinas com agentes de IA"
 readme = "README.md"
 requires-python = ">=3.13"
