@@ -8,6 +8,12 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-08-14
+
+### Changed
+
+- docs(planejamento): conclui fase 0
+
 ## [0.7.0] — 2026-08-14
 
 ### Changed
