@@ -2,7 +2,7 @@
 
 ## Objetivo geral
 
-Permitir que a oficina use o WhatsApp como entrada operacional para cadastrar e consultar clientes, veículos, serviços, orçamentos e ordens de serviço usando texto, áudio e imagem. Ao final, o sistema deve enviar o orçamento ou a OS ao cliente por WhatsApp e e-mail, usando o portal público e os PDFs existentes.
+Permitir que a oficina use o WhatsApp como entrada operacional para cadastrar e consultar clientes, veículos, serviços, orçamentos e ordens de serviço usando texto, áudio e imagem. A integração do WhatsApp será feita por n8n e Evolution API: o n8n recebe e envia eventos no provedor, enquanto o Django concentra regras de domínio, autorização, persistência e confirmação. Ao final, o sistema deve enviar o orçamento ou a OS ao cliente por WhatsApp e e-mail, usando o portal público e os PDFs existentes.
 
 Fluxo padrão para ações mutáveis:
 
@@ -43,13 +43,39 @@ edição; a validação local e remota também fazem parte da tarefa.
 - Toda operação mutável valida permissão com `@requer_permissao("codigo")` ou
   `user.pode("codigo")` e exige confirmação explícita antes de gravar.
 - Cliente final e funcionário possuem fluxos e permissões diferentes.
-- Webhooks são idempotentes; o mesmo `message_id` não cria registros duplicados.
+- Webhooks são idempotentes; o mesmo identificador estável da mensagem da Evolution API não cria registros duplicados, mesmo que a Evolution API ou o n8n reenvie o evento.
 - Dados extraídos por IA são sugestões até confirmação do usuário ou funcionário autorizado.
 - Texto, áudio e imagem convergem para os mesmos serviços de domínio.
 - Processamento pesado, visão, e-mails e mídias usam Celery quando houver Redis.
-- OpenAI, WhatsApp, R2 e SMTP são opcionais e possuem fallback compreensível.
+- OpenAI, n8n, Evolution API, R2 e SMTP são opcionais e possuem fallback compreensível.
 - O versionamento deve ser automático via CI/CD: o pipeline deve detectar tipo de mudança, executar o bump semântico, atualizar `VERSION`, `pyproject.toml` e `CHANGELOG.md`, criar tag e gerar release sem edição manual.
 - Consultas, ferramentas, uploads e links públicos preservam o isolamento entre oficinas.
+
+### Integração WhatsApp: n8n + Evolution API
+
+O Django não chama a Evolution API nem recebe suas credenciais. O n8n é a
+fronteira de integração e possui dois fluxos independentes:
+
+1. **Entrada:** Evolution API envia o evento ao n8n; o n8n valida a origem,
+  descarta eventos não relacionados a mensagens recebidas, baixa a mídia quando
+  necessária e encaminha ao Django um evento normalizado.
+2. **Saída:** Django persiste a ação confirmada e envia ao webhook privado do
+  n8n um comando de entrega; o n8n usa a Evolution API para enviar a mensagem e
+  informa ao Django o resultado e o identificador retornado pelo provedor.
+
+O contrato interno entre n8n e Django deve conter `evento_id`,
+`mensagem_id_provedor`, `instancia`, `telefone`, `tipo`, `texto`, metadados de
+mídia e, quando aplicável, o binário da mídia. `oficina_id`, permissões, IDs de
+cliente, veículo, orçamento, itens e valores não são aceitos do evento externo.
+O `mensagem_id_provedor` é a chave de idempotência; `evento_id` e o identificador
+de execução do n8n servem apenas para rastreabilidade e não substituem essa chave.
+
+Os dois sentidos usam segredo próprio, rotacionável e comparação em tempo
+constante: n8n assina o corpo enviado ao Django com HMAC-SHA256, e Django assina
+os comandos de saída enviados ao n8n. O segredo da Evolution API fica somente
+nas credenciais do n8n. Os endpoints são `csrf_exempt` por serem integrações de
+servidor, mas rejeitam assinatura ausente ou inválida, payload fora do schema,
+replay e tamanho ou MIME de mídia não permitido.
 
 ## Regra de veículos 0 km, placa e chassi
 
@@ -306,6 +332,14 @@ Manter contexto entre mensagens e impedir duplicidade quando a Meta reenviar web
 - Confirmação fica associada ao rascunho correto.
 - Contexto não permite acessar outra oficina.
 
+### Situação da integração anterior
+
+A Fase 1 foi concluída usando o adapter direto da Cloud API da Meta. Esse
+adapter permanece apenas como comportamento legado até que a Fase 1B esteja
+validada em produção; novas funcionalidades de WhatsApp não devem ampliar esse
+caminho. A migração abaixo substitui o transporte, sem alterar os contratos de
+conversa, preview, confirmação, isolamento por oficina ou idempotência.
+
 ### Calendário da fase 1
 
 | Status | Dia | Modificação | O que deve ser feito |
@@ -315,6 +349,76 @@ Manter contexto entre mensagens e impedir duplicidade quando a Meta reenviar web
 | [x] | 3 | Criar migração | Gerar índices e restrições para consulta rápida e idempotência. Commit `d5f562a` aprovado no CI e release `v0.10.0` publicada. |
 | [x] | 4 | Ajustar webhook | Validar assinatura, detectar duplicidade e responder sem bloquear tarefas longas. Commit `d5f562a` aprovado no CI e release `v0.10.0` publicada. |
 | [x] | 5 | Testar idempotência | Cobrir reenvio, contexto expirado, confirmação fora de contexto e isolamento entre oficinas. Commit `d5f562a` aprovado no CI e release `v0.10.0` publicada. |
+
+## Fase 1B - Migração do canal para n8n e Evolution API
+
+### Objetivo da fase 1B
+
+Substituir o transporte direto da Cloud API da Meta por n8n e Evolution API,
+mantendo o Django como autoridade de domínio e sem expor credenciais do provedor
+na aplicação.
+
+### Alterações de integração
+
+- Criar no n8n um workflow de entrada com webhook da Evolution API, filtro para
+  mensagens recebidas e normalização de texto, áudio e imagem.
+- Configurar no n8n as credenciais e a instância da Evolution API; nunca gravar
+  token, URL administrativa ou chave da Evolution no `.env` do Django.
+- Criar endpoint privado no Django para eventos do n8n, protegido por
+  HMAC-SHA256, timestamp e identificador de replay, sem verificação CSRF.
+- Usar o identificador estável da mensagem recebido da Evolution API como a
+  chave única já armazenada em `MensagemAgente.whatsapp_message_id`; registrar
+  também instância, evento e execução do n8n em metadados para auditoria.
+- Criar endpoint ou comando privado de saída do Django para o n8n; n8n envia o
+  texto pela Evolution API e retorna status, `mensagem_id_provedor` e erro
+  sanitizado ao Django.
+- Manter `WHATSAPP_DRY_RUN` como modo de simulação do adapter n8n, com outbox de
+  teste; remover gradualmente configurações e chamadas específicas da Graph API
+  depois da migração validada.
+
+### Mídia e processamento
+
+- O n8n baixa mídia da Evolution API e a encaminha ao Django como binário ou
+  upload autenticado; URLs privadas do provedor e seus tokens não entram no
+  banco, nos logs nem no contexto do agente.
+- O Django valida tamanho, MIME e hash do arquivo, associa a mídia à conversa e
+  delega transcrição, normalização e análise demorada ao Celery.
+- Tentativas do n8n, falha de download ou evento duplicado não podem criar
+  mensagens, anexos, cadastros ou orçamentos duplicados.
+
+### Testes da fase 1B
+
+- Evento normalizado, assinado pelo n8n, cria uma única mensagem e dispara a
+  mesma tarefa usada pelo painel.
+- Assinatura, timestamp, schema ou replay inválidos retornam erro sem criar
+  conversa ou mensagem.
+- Reenvio da Evolution API com o mesmo `mensagem_id_provedor` é idempotente,
+  ainda que tenha outro `evento_id` ou execução do n8n.
+- Comando de saída autenticado chega ao workflow n8n; falha ou retry de entrega
+  não desfaz o registro confirmado nem duplica o envio.
+- Credenciais e URLs privadas da Evolution API não aparecem em resposta, log ou
+  `MensagemAgente.metadados`.
+
+### Critérios de aceite da fase 1B
+
+- Texto entra e resposta sai pelo n8n e Evolution API, sem chamada da Graph API
+  pelo Django.
+- O mesmo evento pode ser reenviado sem duplicar dados.
+- Falha no n8n ou na Evolution API é registrada por canal e não reverte uma
+  operação já confirmada.
+- O adapter legado só é removido após execução paralela controlada e validação
+  dos fluxos de texto, áudio, imagem e notificação.
+
+### Calendário da fase 1B
+
+| Status | Dia | Modificação | O que deve ser feito |
+| --- | --- | --- | --- |
+| [ ] | 1 | Contrato e credenciais | Definir schema assinado n8n-Django, segredos por sentido, instância e política de replay. |
+| [ ] | 2 | Entrada | Criar workflow n8n de webhook Evolution e endpoint Django de ingestão normalizada. |
+| [ ] | 3 | Idempotência | Mapear identificador da Evolution para `whatsapp_message_id` e testar retries do n8n. |
+| [ ] | 4 | Saída | Criar comando autenticado Django-n8n, workflow de envio Evolution e callback de entrega. |
+| [ ] | 5 | Mídia | Baixar áudio/imagem no n8n, encaminhar binário autenticado e validar limites no Django. |
+| [ ] | 6 | Migração e testes | Executar testes de segurança e fluxo paralelo; remover o adapter Meta somente após validação. |
 
 ## Fase 2 - Cadastro e localização por texto
 
@@ -636,7 +740,9 @@ Imagem, análise visual e criação direta de OS devem entrar depois da validaç
 - Agente e tools: `agents/assistente.py`.
 - Entrada unificada: `agents/entrada.py`.
 - Áudio e Whisper: `agents/audio.py`.
-- Webhook WhatsApp: `apps/agentes/webhook.py` e `apps/agentes/whatsapp.py`.
+- Integração WhatsApp n8n: endpoint de ingestão autenticado em
+  `apps/agentes/webhook.py`, adapter de domínio em `apps/agentes/whatsapp.py` e
+  workflows de entrada/saída no n8n.
 - Estado e mensagens: `apps/agentes/models.py`.
 - Tarefas: `apps/agentes/tasks.py`.
 - Modelos de domínio: `apps/core/models.py`, `apps/orcamentos/models.py` e `apps/ordens/models.py`.
