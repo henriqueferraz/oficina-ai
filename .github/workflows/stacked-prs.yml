@@ -1,0 +1,31 @@
+name: Atualizar pilha de PRs
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  retarget-children:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Reposicionar PRs-filhas abertas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGED_HEAD: ${{ github.event.pull_request.head.ref }}
+          NEW_BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          gh api --paginate \
+            "/repos/${GITHUB_REPOSITORY}/pulls?state=open&base=${MERGED_HEAD}&per_page=100" \
+            --jq '.[].number' |
+            while read -r pull_number; do
+              if [[ -n "${pull_number}" ]]; then
+                gh api --method PATCH \
+                  "/repos/${GITHUB_REPOSITORY}/pulls/${pull_number}" \
+                  -f base="${NEW_BASE}"
+              fi
+            done
