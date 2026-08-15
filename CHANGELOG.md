@@ -8,6 +8,12 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-08-15
+
+### Changed
+
+- ci: automatizar reposicionamento de PRs empilhadas
+
 ## [0.11.0] — 2026-08-15
 
 ### Changed
