@@ -502,7 +502,11 @@ Reutilizar Whisper para executar o mesmo fluxo da Fase 2 por áudio.
 
 - `agents/audio.py`: manter validação de MIME, tamanho e fallback sem API key.
 - `agents/entrada.py`: transcrever e encaminhar ao parser de texto, preservando o tipo da entrada.
-- `apps/agentes/whatsapp.py`: baixar áudio, registrar `media_id` e evitar download duplicado.
+- Workflow n8n: baixar áudio pela Evolution API, manter o identificador estável
+  da mensagem e encaminhar binário autenticado ao Django sem expor URL ou token
+  do provedor.
+- Endpoint de integração Django: registrar hash e metadados seguros da mídia,
+  rejeitar MIME/tamanho inválido e evitar download ou persistência duplicados.
 - `apps/agentes/tasks.py`: usar Celery, retry limitado e backoff quando necessário.
 - Painel: manter upload compatível com o fluxo existente.
 
@@ -519,7 +523,7 @@ Reutilizar Whisper para executar o mesmo fluxo da Fase 2 por áudio.
 
 | Status | Dia | Modificação | O que deve ser feito |
 | --- | --- | --- | --- |
-| [ ] | 1 | Entrada de áudio | Revisar MIME, tamanho, download da Meta e armazenamento da mensagem. |
+| [ ] | 1 | Entrada de áudio | Revisar MIME, tamanho, download via n8n/Evolution e armazenamento autenticado da mensagem. |
 | [ ] | 2 | Transcrição | Encaminhar Whisper para o parser de texto sem duplicar regras de negócio. |
 | [ ] | 3 | Fallbacks | Tratar ausência de chave, erro de transcrição, timeout e resposta ao usuário. |
 | [ ] | 4 | Tarefas | Configurar Celery, retry limitado e backoff para processamento demorado. |
@@ -587,7 +591,8 @@ Aceitar fotos de veículo, placa, documento ou dano pelo WhatsApp e painel, prim
 ### Etapa 5.1 - Anexo documental
 
 - `apps/agentes/models.py`: registrar imagem, MIME, tamanho, origem e status.
-- `apps/agentes/whatsapp.py`: aceitar `type=image`, baixar, validar e responder sem bloquear.
+- Workflow n8n: aceitar evento de imagem da Evolution API, baixar a mídia e
+  encaminhá-la ao Django sem repassar credenciais ou URLs privadas do provedor.
 - `apps/agentes/tasks.py`: normalizar via `apps/core/imagens.py`, salvar em R2 ou `media/` e vincular a `OrcamentoFoto` ou `OrdemFoto`.
 - Limitar tamanho, quantidade e formatos.
 
@@ -615,8 +620,8 @@ Aceitar fotos de veículo, placa, documento ou dano pelo WhatsApp e painel, prim
 
 | Status | Dia | Modificação | O que deve ser feito |
 | --- | --- | --- | --- |
-| [ ] | 1 | Recepção de imagem | Aceitar `type=image`, extrair `media_id` e validar assinatura e origem. |
-| [ ] | 2 | Download e limites | Baixar mídia, validar MIME/tamanho e impedir duplicidade de imagem. |
+| [ ] | 1 | Recepção de imagem | Receber evento normalizado do n8n, extrair identificador estável da Evolution e validar assinatura, timestamp e origem. |
+| [ ] | 2 | Download e limites | Baixar mídia no n8n, encaminhar binário autenticado, validar MIME/tamanho no Django e impedir duplicidade de imagem. |
 | [ ] | 3 | Normalização | Usar `apps/core/imagens.py` para redimensionar e comprimir antes do storage. |
 | [ ] | 4 | Persistência | Salvar em R2 ou local e vincular ao orçamento/OS após confirmação. |
 | [ ] | 5 | Análise visual | Adicionar sugestões opcionais de placa, veículo e dano, sem gravar automaticamente. |
