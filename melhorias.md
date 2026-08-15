@@ -413,12 +413,12 @@ na aplicação.
 
 | Status | Dia | Modificação | O que deve ser feito |
 | --- | --- | --- | --- |
-| [ ] | 1 | Contrato e credenciais | Definir schema assinado n8n-Django, segredos por sentido, instância e política de replay. |
-| [ ] | 2 | Entrada | Criar workflow n8n de webhook Evolution e endpoint Django de ingestão normalizada. |
-| [ ] | 3 | Idempotência | Mapear identificador da Evolution para `whatsapp_message_id` e testar retries do n8n. |
-| [ ] | 4 | Saída | Criar comando autenticado Django-n8n, workflow de envio Evolution e callback de entrega. |
-| [ ] | 5 | Mídia | Baixar áudio/imagem no n8n, encaminhar binário autenticado e validar limites no Django. |
-| [ ] | 6 | Migração e testes | Executar testes de segurança e fluxo paralelo; remover o adapter Meta somente após validação. |
+| [~] | 1 | Contrato e credenciais | Definir schema assinado n8n-Django, segredos por sentido, instância e política de replay. |
+| [~] | 2 | Entrada | Criar workflow n8n de webhook Evolution e endpoint Django de ingestão normalizada. |
+| [~] | 3 | Idempotência | Mapear identificador da Evolution para `whatsapp_message_id` e testar retries do n8n. |
+| [~] | 4 | Saída | Criar comando autenticado Django-n8n, workflow de envio Evolution e callback de entrega. |
+| [~] | 5 | Mídia | Baixar áudio/imagem no n8n, encaminhar binário autenticado e validar limites no Django. |
+| [~] | 6 | Migração e testes | Executar testes de segurança e fluxo paralelo; remover o adapter Meta somente após validação. |
 
 ## Fase 2 - Cadastro e localização por texto
 

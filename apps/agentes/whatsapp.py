@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
 import re
+import time
 from typing import Any
 
 from django.conf import settings
@@ -41,9 +45,53 @@ def enviar_whatsapp(*, telefone: str, texto: str, oficina=None) -> bool:
         "oficina_id": getattr(oficina, "id", None),
     }
 
-    if not whatsapp_configurado() or getattr(settings, "WHATSAPP_DRY_RUN", True):
+    if getattr(settings, "WHATSAPP_DRY_RUN", True):
         OUTBOX.append(payload)
         logger.info("WhatsApp dry-run → %s", digits)
+        return True
+
+    n8n_url = getattr(settings, "N8N_OUTBOUND_URL", "")
+    if n8n_url:
+        segredo = (getattr(settings, "N8N_OUTBOUND_SECRET", "") or "").encode()
+        if not segredo:
+            logger.error("N8N_OUTBOUND_SECRET não configurado")
+            return False
+
+        import httpx
+
+        corpo = json.dumps(
+            {
+                "telefone": digits,
+                "texto": texto[:4096],
+                "instancia": getattr(settings, "N8N_EVOLUTION_INSTANCE", ""),
+            },
+            separators=(",", ":"),
+        ).encode()
+        timestamp = str(int(time.time()))
+        assinatura = hmac.new(
+            segredo, timestamp.encode() + b"." + corpo, hashlib.sha256
+        ).hexdigest()
+        try:
+            resposta = httpx.post(
+                n8n_url,
+                content=corpo,
+                headers={
+                    "Content-Type": "application/json",
+                    "X-N8N-Timestamp": timestamp,
+                    "X-N8N-Signature": f"sha256={assinatura}",
+                },
+                timeout=20,
+            )
+            resposta.raise_for_status()
+            OUTBOX.append({**payload, "n8n_ok": True})
+            return True
+        except Exception:
+            logger.exception("Falha ao enviar comando ao n8n para %s", digits)
+            return False
+
+    if not whatsapp_configurado():
+        OUTBOX.append(payload)
+        logger.info("WhatsApp sem adapter configurado → %s", digits)
         return True
 
     try:
@@ -191,6 +239,8 @@ def processar_mensagem_entrada(
     mime: str = "",
     tipo: str = "text",
     message_id: str = "",
+    media_content: bytes | None = None,
+    metadados_origem: dict[str, str] | None = None,
 ) -> str | None:
     """Cria/reusa conversa WhatsApp e responde via agente. Retorna resposta ou None."""
     from agents.audio import extensao_para_mime
@@ -227,12 +277,15 @@ def processar_mensagem_entrada(
 
     audio_file = None
     mime_n = mime
-    if tipo == "audio" and media_id:
+    if tipo == "audio" and (media_content or media_id):
         try:
-            raw, mime_api = baixar_midia_whatsapp(media_id)
-            mime_n = mime or mime_api
+            if media_content is None:
+                raw, mime_api = baixar_midia_whatsapp(media_id)
+                mime_n = mime or mime_api
+            else:
+                raw = media_content
             ext = extensao_para_mime(mime_n)
-            audio_file = ContentFile(raw, name=f"wa_{media_id}.{ext}")
+            audio_file = ContentFile(raw, name=f"wa_{message_id or media_id}.{ext}")
         except Exception as exc:
             logger.warning(
                 "Falha ao baixar áudio WhatsApp media_id=%s: %s",
@@ -275,7 +328,8 @@ def processar_mensagem_entrada(
                 "tipo": "audio" if tipo == "audio" else "texto",
             }.items()
             if value
-        },
+        }
+        | (metadados_origem or {}),
     )
     if resposta:
         enviar_whatsapp(telefone=digits, texto=resposta, oficina=oficina)

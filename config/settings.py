@@ -282,6 +282,15 @@ WHATSAPP_DRY_RUN = env.bool("WHATSAPP_DRY_RUN", default=True)
 # do dry-run — o webhook aciona tools que criam orçamento e mudam status de OS.
 WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
 
+# Integração n8n + Evolution API. As credenciais da Evolution pertencem ao n8n;
+# o Django recebe somente eventos normalizados e envia comandos assinados.
+N8N_INBOUND_SECRET = env("N8N_INBOUND_SECRET", default="")
+N8N_OUTBOUND_SECRET = env("N8N_OUTBOUND_SECRET", default="")
+N8N_OUTBOUND_URL = env("N8N_OUTBOUND_URL", default="")
+N8N_EVOLUTION_INSTANCE = env("N8N_EVOLUTION_INSTANCE", default="")
+N8N_WEBHOOK_MAX_AGE_SECONDS = env.int("N8N_WEBHOOK_MAX_AGE_SECONDS", default=300)
+N8N_MAX_MEDIA_BYTES = env.int("N8N_MAX_MEDIA_BYTES", default=8 * 1024 * 1024)
+
 # Testes: SQLite em memória + storage local (sem tocar Neon/R2)
 if "test" in sys.argv:
     DATABASES = {

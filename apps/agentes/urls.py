@@ -8,7 +8,7 @@ from apps.accounts.permissions import requer_permissao
 from apps.core.views import get_oficina
 
 from .models import ConversaAgente
-from .webhook import whatsapp_webhook
+from .webhook import n8n_delivery_callback, n8n_whatsapp_webhook, whatsapp_webhook
 
 app_name = "agentes"
 
@@ -62,5 +62,7 @@ urlpatterns = [
     path("", painel, name="painel"),
     path("nova/", nova_conversa, name="nova"),
     path("whatsapp/webhook/", whatsapp_webhook, name="whatsapp_webhook"),
+    path("whatsapp/n8n/entrada/", n8n_whatsapp_webhook, name="n8n_whatsapp_webhook"),
+    path("whatsapp/n8n/entrega/", n8n_delivery_callback, name="n8n_delivery_callback"),
     path("<int:pk>/", conversa, name="conversa"),
 ]

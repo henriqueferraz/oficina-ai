@@ -13,8 +13,11 @@
 - OpenAI via tools em `agents/assistente.py` (leitura + criar orçamento + atualizar status OS).
 - Busca NL no painel (`/busca/`) usa internamente o helper `busca_operacional`; com `LLM_ENABLED` interpreta a frase. Esse helper não é uma tool exposta diretamente ao LLM.
 - Resumo diário: Celery Beat (`agentes.enviar_resumo_diario`) e-mail ao dono às 07:00.
-- WhatsApp: webhook em `/agentes/whatsapp/webhook/` → `ConversaAgente` + `chat()` (dry-run sem token Meta).
-- Áudio no painel e no WhatsApp → Whisper (`agents/audio.py`) → `processar_entrada_usuario` (`agents/entrada.py`) → mesmas tools do agente. Arquivo em `MensagemAgente.audio`.
+- WhatsApp: Evolution API → n8n → webhook assinado em
+  `/agentes/whatsapp/n8n/entrada/` → `ConversaAgente` + `chat()`. O n8n também
+  recebe os comandos de saída assinados do Django; o adapter Meta permanece
+  apenas como legado durante a migração.
+- Áudio no painel e no WhatsApp → Whisper (`agents/audio.py`) → `processar_entrada_usuario` (`agents/entrada.py`) → mesmas tools do agente. O n8n baixa a mídia da Evolution e encaminha binário autenticado; arquivo em `MensagemAgente.audio`.
 
 ## Portal do cliente
 

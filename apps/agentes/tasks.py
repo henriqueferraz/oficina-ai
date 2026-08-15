@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
@@ -31,6 +34,47 @@ def processar_mensagem_whatsapp(
         mime=mime,
         tipo=tipo,
         message_id=message_id,
+    )
+
+
+@shared_task(name="agentes.processar_mensagem_n8n")
+def processar_mensagem_n8n(
+    *,
+    telefone: str,
+    texto: str = "",
+    mime: str = "",
+    tipo: str = "text",
+    message_id: str = "",
+    evento_id: str = "",
+    instancia: str = "",
+    media_base64: str = "",
+) -> str | None:
+    """Processa evento normalizado pelo n8n sem acessar a Evolution API."""
+    from apps.agentes.whatsapp import processar_mensagem_entrada
+
+    media_content = None
+    if media_base64:
+        try:
+            media_content = base64.b64decode(media_base64, validate=True)
+        except (binascii.Error, ValueError):
+            return None
+
+    return processar_mensagem_entrada(
+        telefone=telefone,
+        texto=texto,
+        mime=mime,
+        tipo=tipo,
+        message_id=message_id,
+        media_content=media_content,
+        metadados_origem={
+            key: value
+            for key, value in {
+                "evento_id": evento_id,
+                "instancia": instancia,
+                "origem": "n8n",
+            }.items()
+            if value
+        },
     )
 
 

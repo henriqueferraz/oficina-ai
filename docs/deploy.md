@@ -5,7 +5,7 @@
 Copie de `.env.example`. Principais:
 
 | Variável | Obrigatória | Descrição |
-|----------|-------------|-----------|
+| ---------- | ------------- | ----------- |
 | `SECRET_KEY` | sim | Chave Django |
 | `DEBUG` | sim | `False` em produção |
 | `ALLOWED_HOSTS` | sim | Domínios separados por vírgula |
@@ -23,10 +23,22 @@ Copie de `.env.example`. Principais:
 | `DEFAULT_FROM_EMAIL` | não | Remetente do resumo diário |
 | `EMAIL_BACKEND` / SMTP | não | E-mail em produção (resumo diário) |
 | `PUBLIC_BASE_URL` | não | Base dos links públicos (e-mail/WhatsApp) |
-| `WHATSAPP_VERIFY_TOKEN` | webhook | Verificação Meta |
-| `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp real | Cloud API |
-| `WHATSAPP_DRY_RUN` | não | `True` = não chama Graph API |
+| `N8N_INBOUND_SECRET` | n8n | Assina eventos e callbacks n8n → Django |
+| `N8N_OUTBOUND_SECRET` | n8n | Assina comandos Django → n8n |
+| `N8N_OUTBOUND_URL` | n8n | Webhook de saída do workflow n8n |
+| `N8N_EVOLUTION_INSTANCE` | n8n | Instância Evolution usada no envio |
+| `N8N_WEBHOOK_MAX_AGE_SECONDS` | não | Janela máxima do timestamp HMAC, padrão 300 |
+| `N8N_MAX_MEDIA_BYTES` | não | Limite de mídia base64 aceita do n8n, padrão 8 MiB |
+| `WHATSAPP_DRY_RUN` | não | `True` = simula a entrega sem chamar n8n ou Evolution |
 | `FIPE_DB_PATH` | não | Caminho absoluto da base FIPE (default: `data/fipe.db`) |
+
+## WhatsApp via n8n
+
+Configure a Evolution API e suas credenciais no n8n, não no Django. O workflow
+de entrada envia eventos normalizados para
+`/agentes/whatsapp/n8n/entrada/`, e o workflow de saída recebe comandos em
+`N8N_OUTBOUND_URL`. Ambos os sentidos usam HMAC-SHA256 e timestamp. Consulte
+[n8n-evolution.md](n8n-evolution.md) para payloads e headers.
 
 ## EasyPanel (VPS)
 
@@ -50,8 +62,8 @@ CELERY_BROKER_URL=redis://redis:6379/0
 
 Com `ALLOWED_HOSTS` preenchido, o app também deriva `CSRF_TRUSTED_ORIGINS` automaticamente se a var estiver vazia.
 
-5. Aba **Domains**: domínio + HTTPS (Let’s Encrypt). DNS **A** → IP da VPS.
-6. **Deploy**. O container roda `migrate`, `collectstatic` e Gunicorn.
+1. Aba **Domains**: domínio + HTTPS (Let’s Encrypt). DNS **A** → IP da VPS.
+2. **Deploy**. O container roda `migrate`, `collectstatic` e Gunicorn.
 
 Opcional no mesmo projeto: serviço **Postgres** (monte o `DATABASE_URL`) e **Redis**
 com worker e beat Celery para executar o resumo diário fora do processo web.
