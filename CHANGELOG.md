@@ -8,6 +8,12 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-08-15
+
+### Changed
+
+- feat(agentes): integrar n8n e Evolution API
+
 ## [0.10.2] — 2026-08-15
 
 ### Changed
