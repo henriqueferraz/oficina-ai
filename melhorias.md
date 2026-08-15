@@ -549,9 +549,10 @@ Em `apps/core/notifications.py`:
 
 - criar `notificar_orcamento_enviado`;
 - e-mail HTML com resumo, total, link e PDF;
-- WhatsApp com texto curto e link do portal;
-- respeitar `WHATSAPP_DRY_RUN`;
-- registrar sucesso e erro por canal;
+- comando de WhatsApp com texto curto e link do portal para o webhook de saída
+  do n8n; o workflow n8n envia pela Evolution API;
+- respeitar o modo de simulação do adapter n8n;
+- registrar sucesso, identificador do provedor e erro sanitizado por canal;
 - evitar duplicidade em retry.
 
 Em `apps/agentes/tasks.py`:
@@ -566,7 +567,7 @@ Em `apps/agentes/tasks.py`:
 - WhatsApp recebe resumo e link.
 - Ausência de e-mail não bloqueia WhatsApp.
 - Falha de WhatsApp não desfaz orçamento.
-- Dry-run não chama Graph API.
+- Dry-run não chama n8n nem Evolution API.
 - Retry não duplica mensagens.
 - Portal aprova ou recusa no estado correto.
 - Orçamento mantém veículo sem placa quando o chassi foi informado.
@@ -577,8 +578,8 @@ Em `apps/agentes/tasks.py`:
 | --- | --- | --- | --- |
 | [ ] | 1 | Fechamento do orçamento | Validar dados confirmados, itens, cliente, veículo e status antes de enviar. |
 | [ ] | 2 | E-mail | Montar mensagem HTML, anexar PDF e tratar ausência de endereço ou falha SMTP. |
-| [ ] | 3 | WhatsApp | Enviar resumo e link do portal, respeitando dry-run e limite de mensagem. |
-| [ ] | 4 | Tarefas de envio | Criar retry, backoff, registro por canal e proteção contra envio duplicado. |
+| [ ] | 3 | WhatsApp | Enviar comando assinado ao n8n com resumo e link do portal; workflow usa Evolution API, respeita simulação e limite de mensagem. |
+| [ ] | 4 | Tarefas de envio | Criar retry, backoff, callback de entrega, registro por canal e proteção contra envio duplicado. |
 | [ ] | 5 | Portal | Confirmar aprovação/recusa e notificar a oficina sem desfazer o orçamento. |
 | [ ] | 6 | Testes | Cobrir sucesso, falha isolada de canal, retry, dry-run e veículo sem placa. |
 
@@ -686,10 +687,11 @@ Endurecer os fluxos depois que o MVP funcionar com dados reais.
 
 - Revisar cada tool para permissão e oficina no contexto.
 - Criar limites por oficina para mensagens, Whisper, visão e uploads.
-- Adicionar rate limiting e proteção contra abuso do webhook.
+- Adicionar rate limiting e proteção contra abuso dos endpoints n8n-Django;
+  configurar assinatura, timestamp, nonce/replay e allowlist de origem no n8n.
 - Criar logs sem tokens, senhas, chaves ou conteúdo sensível desnecessário.
 - Medir mensagens, transcrições, imagens, previews, envios, retries e custos.
-- Alertar falhas de Celery, WhatsApp, e-mail e R2.
+- Alertar falhas de Celery, n8n, Evolution API, e-mail e R2.
 - Revisar expiração e revogação de tokens públicos.
 - Definir retenção de áudio, imagem, dados pessoais e documentos.
 - Atualizar `.env.example`, documentação de deploy e testes de configuração.
@@ -698,7 +700,7 @@ Endurecer os fluxos depois que o MVP funcionar com dados reais.
 
 - Isolamento entre duas oficinas em cada tool.
 - Usuário sem permissão não cria, edita, envia ou converte.
-- Assinatura inválida é rejeitada.
+- Assinatura n8n-Django inválida, timestamp expirado ou replay é rejeitado.
 - Rate limit impede abuso sem bloquear uso normal.
 - Retry não duplica dados ou mensagens.
 - Segredos não aparecem nos logs.
@@ -710,8 +712,8 @@ Endurecer os fluxos depois que o MVP funcionar com dados reais.
 | --- | --- | --- | --- |
 | [ ] | 1 | Permissões | Auditar cada tool, view e tarefa com `@requer_permissao` ou `user.pode`. |
 | [ ] | 2 | Isolamento | Testar duas oficinas, links públicos, uploads, buscas e contexto de IA. |
-| [ ] | 3 | Limites | Configurar rate limiting, limites de mídia, Whisper, visão e mensagens. |
-| [ ] | 4 | Observabilidade | Criar logs, métricas e alertas sem registrar segredos ou dados desnecessários. |
+| [ ] | 3 | Limites | Configurar rate limiting, limites de mídia, Whisper, visão e mensagens nos fluxos n8n-Django. |
+| [ ] | 4 | Observabilidade | Criar logs, métricas e alertas de n8n/Evolution sem registrar segredos ou dados desnecessários. |
 | [ ] | 5 | Retenção | Definir expiração de tokens e retenção de áudio, imagem e dados pessoais. |
 | [ ] | 6 | Resiliência | Validar retry, fallback, filas, falhas de WhatsApp, e-mail, R2 e Celery. |
 | [ ] | 7 | Validação final | Executar testes, Ruff, `manage.py check`, revisão de segurança e documentação. |
@@ -720,16 +722,17 @@ Endurecer os fluxos depois que o MVP funcionar com dados reais.
 
 1. Fase 0: atores, permissões e contratos.
 2. Fase 1: estado da conversa e idempotência.
-3. Fase 2: texto, cadastro e orçamento em rascunho.
-4. Fase 3: áudio reutilizando o fluxo de texto.
-5. Fase 4: envio do orçamento por WhatsApp e e-mail.
-6. Fase 5: foto documental e depois análise visual.
-7. Fase 6: conversão para OS e entrega.
-8. Fase 7: segurança, limites e observabilidade.
+3. Fase 1B: migrar o transporte do WhatsApp para n8n e Evolution API.
+4. Fase 2: texto, cadastro e orçamento em rascunho.
+5. Fase 3: áudio reutilizando o fluxo de texto.
+6. Fase 4: envio do orçamento por WhatsApp e e-mail.
+7. Fase 5: foto documental e depois análise visual.
+8. Fase 6: conversão para OS e entrega.
+9. Fase 7: segurança, limites e observabilidade.
 
 ## MVP mínimo recomendado
 
-- WhatsApp por texto e áudio.
+- WhatsApp por texto e áudio via n8n + Evolution API.
 - Localização ou cadastro de cliente.
 - Localização ou cadastro de veículo.
 - Suporte a veículo 0 km sem placa, identificado por chassi.
