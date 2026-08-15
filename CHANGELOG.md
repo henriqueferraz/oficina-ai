@@ -8,6 +8,14 @@ e [Conventional Commits](https://www.conventionalcommits.org/).
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-08-15
+
+### Changed
+
+- Merge pull request #1 from henriqueferraz/docs/n8n-evolution-contrato
+
+docs(planejamento): definir migracao n8n e Evolution
+
 ## [0.10.1] — 2026-08-14
 
 ### Changed
